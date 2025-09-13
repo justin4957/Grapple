@@ -56,6 +56,11 @@ defmodule Grapple.CLI.Shell do
       FIND NODES <prop> <value>          - Find nodes by property
       FIND EDGES <label>                 - Find edges by label
     
+    Distributed Operations:
+      CLUSTER STATUS                     - Show distributed cluster status
+      CLUSTER JOIN <node>                - Join another cluster node
+      CLUSTER HEALTH                     - Show cluster health information
+    
     Cluster Operations:
       JOIN <node@host>                   - Join cluster
       CLUSTER INFO                       - Show cluster status
@@ -196,6 +201,58 @@ defmodule Grapple.CLI.Shell do
     IO.puts("    Nodes: #{stats.memory_usage.nodes} words")
     IO.puts("    Edges: #{stats.memory_usage.edges} words") 
     IO.puts("    Indexes: #{stats.memory_usage.indexes} words")
+  end
+
+  defp handle_command("CLUSTER STATUS") do
+    case Process.whereis(Grapple.Distributed.ClusterManager) do
+      nil ->
+        IO.puts("Distributed mode not enabled. Start with: Application.put_env(:grapple, :distributed, true)")
+      
+      _pid ->
+        cluster_info = Grapple.Distributed.ClusterManager.get_cluster_info()
+        IO.puts("Distributed Cluster Status:")
+        IO.puts("  Local Node: #{cluster_info.local_node}")
+        IO.puts("  Cluster Nodes: #{inspect(cluster_info.nodes)}")
+        IO.puts("  Partition Count: #{cluster_info.partition_count}")
+        IO.puts("  Status: #{cluster_info.status}")
+    end
+  end
+
+  defp handle_command("CLUSTER HEALTH") do
+    case Process.whereis(Grapple.Distributed.HealthMonitor) do
+      nil ->
+        IO.puts("Health monitoring not available in this mode")
+      
+      _pid ->
+        health = Grapple.Distributed.HealthMonitor.get_cluster_health()
+        IO.puts("Cluster Health Report:")
+        IO.puts("  Overall Status: #{health.overall_status}")
+        IO.puts("  Monitored Nodes: #{length(health.monitored_nodes)}")
+        IO.puts("  Failed Nodes: #{length(health.failed_nodes)}")
+        IO.puts("  Recovering Nodes: #{length(health.recovering_nodes)}")
+        
+        if length(health.failed_nodes) > 0 do
+          IO.puts("  Failed: #{inspect(health.failed_nodes)}")
+        end
+    end
+  end
+
+  defp handle_command("CLUSTER JOIN " <> node_name) do
+    case Process.whereis(Grapple.Distributed.ClusterManager) do
+      nil ->
+        IO.puts("Distributed mode not enabled")
+      
+      _pid ->
+        target_node = String.to_atom(String.trim(node_name))
+        
+        case Grapple.Distributed.ClusterManager.join_cluster(target_node) do
+          {:ok, :joined} ->
+            IO.puts("Successfully joined cluster at: #{target_node}")
+          
+          {:error, reason} ->
+            IO.puts("Failed to join cluster: #{inspect(reason)}")
+        end
+    end
   end
 
   defp handle_command("FIND NODES " <> args) do
