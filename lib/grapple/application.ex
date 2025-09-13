@@ -29,9 +29,17 @@ defmodule Grapple.Application do
   
   defp distributed_children(true) do
     [
+      # Phase 1: Basic distributed coordination
       Grapple.Distributed.ClusterManager,
       Grapple.Distributed.HealthMonitor,
-      {Task, fn -> Grapple.Distributed.Discovery.start_discovery() end}
+      {Task, fn -> Grapple.Distributed.Discovery.start_discovery() end},
+      
+      # Phase 2: Data lifecycle management
+      Grapple.Distributed.LifecycleManager,
+      Grapple.Distributed.PlacementEngine,
+      Grapple.Distributed.ReplicationEngine,
+      Grapple.Distributed.Orchestrator,
+      Grapple.Distributed.PersistenceManager
     ]
   end
 end
