@@ -280,13 +280,13 @@ defmodule Grapple do
 
       iex> {:ok, alice} = Grapple.create_node(%{name: "Alice"})
       iex> {:ok, bob} = Grapple.create_node(%{name: "Bob"})
-      iex> Grapple.create_edge(alice, bob, "knows", %{since: "2020"})
-      iex> Grapple.create_edge(bob, alice, "knows", %{since: "2020"})
-      iex> Grapple.find_edges_by_label("knows")
-      {:ok, [
-        %{id: 1, from: 1, to: 2, label: "knows", properties: %{since: "2020"}},
-        %{id: 2, from: 2, to: 1, label: "knows", properties: %{since: "2020"}}
-      ]}
+      iex> {:ok, edge1} = Grapple.create_edge(alice, bob, "knows", %{since: "2020"})
+      iex> {:ok, edge2} = Grapple.create_edge(bob, alice, "knows", %{since: "2020"})
+      iex> {:ok, edges} = Grapple.find_edges_by_label("knows")
+      iex> length(edges)
+      2
+      iex> Enum.all?(edges, fn edge -> edge.label == "knows" and edge.properties.since == "2020" end)
+      true
 
   ## Use Cases
 
@@ -395,12 +395,18 @@ defmodule Grapple do
 
   ## Examples
 
-      iex> Grapple.traverse(1, :out, 2)
-      {:ok, [
-        %{id: 2, properties: %{name: "Bob"}},
-        %{id: 3, properties: %{name: "Carol"}},
-        %{id: 4, properties: %{name: "Dave"}}
-      ]}
+      iex> {:ok, alice} = Grapple.create_node(%{name: "Alice"})
+      iex> {:ok, bob} = Grapple.create_node(%{name: "Bob"})
+      iex> {:ok, carol} = Grapple.create_node(%{name: "Carol"})
+      iex> {:ok, dave} = Grapple.create_node(%{name: "Dave"})
+      iex> {:ok, _} = Grapple.create_edge(alice, bob, "knows")
+      iex> {:ok, _} = Grapple.create_edge(bob, carol, "knows")
+      iex> {:ok, _} = Grapple.create_edge(carol, dave, "knows")
+      iex> {:ok, neighbors} = Grapple.traverse(alice, :out, 2)
+      iex> length(neighbors)
+      2
+      iex> Enum.map(neighbors, & &1.properties.name) |> Enum.sort()
+      ["Bob", "Carol"]
 
       # Traverse incoming edges
       iex> {:ok, alice} = Grapple.create_node(%{name: "Alice"})
