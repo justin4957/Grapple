@@ -44,9 +44,20 @@ defmodule Grapple.Cluster.NodeManager do
         new_ring = build_partition_ring(new_nodes)
         new_state = %{state | nodes: new_nodes, partition_ring: new_ring}
         {:reply, {:ok, :connected}, new_state}
-      
+
       false ->
         {:reply, {:error, :connection_failed}, state}
+
+      :ignored ->
+        # Node is already connected or connection attempt was ignored
+        if node_name in state.nodes do
+          {:reply, {:ok, :already_connected}, state}
+        else
+          new_nodes = [node_name | state.nodes] |> Enum.uniq()
+          new_ring = build_partition_ring(new_nodes)
+          new_state = %{state | nodes: new_nodes, partition_ring: new_ring}
+          {:reply, {:ok, :connected}, new_state}
+        end
     end
   end
 
