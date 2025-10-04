@@ -193,12 +193,12 @@ defmodule Grapple.Query.Language do
     end
   end
 
-  defp execute_node_match(pattern, where_clause, return_clause) do
+  defp execute_node_match(_pattern, _where_clause, _return_clause) do
     # Implementation for node matching
     {:ok, []}
   end
 
-  defp execute_relationship_match(pattern, where_clause, return_clause) do
+  defp execute_relationship_match(_pattern, _where_clause, _return_clause) do
     # Implementation for relationship matching
     {:ok, []}
   end
@@ -209,7 +209,7 @@ defmodule Grapple.Query.Language do
     EtsGraphStore.create_node(pattern.properties || %{})
   end
 
-  defp execute_relationship_create(pattern) do
+  defp execute_relationship_create(_pattern) do
     # Implementation for relationship creation
     {:ok, :created}
   end

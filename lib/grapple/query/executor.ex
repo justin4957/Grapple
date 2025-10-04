@@ -86,7 +86,7 @@ defmodule Grapple.Query.Executor do
     {:ok, results}
   end
 
-  defp execute_parsed_query(%{type: :create, pattern: _pattern}) do
+  defp execute_parsed_query(%{type: :create}) do
     # Handle node/edge creation
     {:ok, :created}
   end

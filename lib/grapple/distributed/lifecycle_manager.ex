@@ -65,7 +65,7 @@ defmodule Grapple.Distributed.LifecycleManager do
   """
 
   use GenServer
-  alias Grapple.Distributed.{ClusterManager, Schema}
+  alias Grapple.Distributed.ClusterManager
 
   @lifecycle_policies %{
     ephemeral: %{
@@ -294,7 +294,7 @@ defmodule Grapple.Distributed.LifecycleManager do
   end
 
   # GenServer callbacks
-  def init(opts) do
+  def init(_opts) do
     local_node = node()
     
     state = %__MODULE__{
@@ -405,7 +405,7 @@ defmodule Grapple.Distributed.LifecycleManager do
     }
   end
 
-  defp determine_placement_strategy(key, policy, state) do
+  defp determine_placement_strategy(key, policy, _state) do
     cluster_info = ClusterManager.get_cluster_info()
     
     %{

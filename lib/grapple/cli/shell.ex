@@ -9,7 +9,7 @@ defmodule Grapple.CLI.Shell do
   alias Grapple.Storage.EtsGraphStore
   alias Grapple.CLI.Autocomplete
   alias Grapple.Visualization.AsciiRenderer
-  alias Grapple.Distributed.{LifecycleManager, PlacementEngine, ReplicationEngine, Orchestrator, PersistenceManager}
+  alias Grapple.Distributed.{LifecycleManager, ReplicationEngine, Orchestrator, PersistenceManager}
 
   def start do
     IO.puts("Grapple Graph Database Shell")
@@ -510,19 +510,14 @@ defmodule Grapple.CLI.Shell do
     case String.split(args, " ", parts: 2, trim: true) do
       [prop, value] ->
         prop_atom = String.to_atom(prop)
-        case EtsGraphStore.find_nodes_by_property(prop_atom, value) do
-          {:ok, nodes} ->
-            if length(nodes) > 0 do
-              IO.puts("Found #{length(nodes)} nodes:")
-              Enum.each(nodes, fn node ->
-                IO.puts("  Node #{node.id}: #{inspect(node.properties)}")
-              end)
-            else
-              IO.puts("No nodes found with #{prop}: #{value}")
-            end
-          
-          {:error, reason} ->
-            IO.puts("Error finding nodes: #{reason}")
+        {:ok, nodes} = EtsGraphStore.find_nodes_by_property(prop_atom, value)
+        if length(nodes) > 0 do
+          IO.puts("Found #{length(nodes)} nodes:")
+          Enum.each(nodes, fn node ->
+            IO.puts("  Node #{node.id}: #{inspect(node.properties)}")
+          end)
+        else
+          IO.puts("No nodes found with #{prop}: #{value}")
         end
       
       _ ->
@@ -532,22 +527,17 @@ defmodule Grapple.CLI.Shell do
 
   defp handle_command("FIND EDGES " <> label) do
     label = String.trim(label)
-    case EtsGraphStore.find_edges_by_label(label) do
-      {:ok, edges} ->
-        if length(edges) > 0 do
-          IO.puts("Found #{length(edges)} edges with label '#{label}':")
-          Enum.each(edges, fn edge ->
-            IO.puts("  Edge #{edge.id}: (#{edge.from})-[#{edge.label}]->(#{edge.to})")
-            if map_size(edge.properties) > 0 do
-              IO.puts("    Properties: #{inspect(edge.properties)}")
-            end
-          end)
-        else
-          IO.puts("No edges found with label: #{label}")
+    {:ok, edges} = EtsGraphStore.find_edges_by_label(label)
+    if length(edges) > 0 do
+      IO.puts("Found #{length(edges)} edges with label '#{label}':")
+      Enum.each(edges, fn edge ->
+        IO.puts("  Edge #{edge.id}: (#{edge.from})-[#{edge.label}]->(#{edge.to})")
+        if map_size(edge.properties) > 0 do
+          IO.puts("    Properties: #{inspect(edge.properties)}")
         end
-      
-      {:error, reason} ->
-        IO.puts("Error finding edges: #{reason}")
+      end)
+    else
+      IO.puts("No edges found with label: #{label}")
     end
   end
 

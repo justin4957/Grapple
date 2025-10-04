@@ -16,7 +16,7 @@ defmodule Grapple.Distributed.Discovery do
     end)
   end
 
-  def discover_peers(timeout \\ 10_000) do
+  def discover_peers(_timeout \\ 10_000) do
     # Collect discoveries from all methods
     discoveries = [
       discover_via_erlang_nodes(),
@@ -123,7 +123,7 @@ defmodule Grapple.Distributed.Discovery do
 
   defp listen_for_discoveries(socket) do
     receive do
-      {:udp, ^socket, address, port, data} ->
+      {:udp, ^socket, _address, _port, data} ->
         case decode_discovery_message(data) do
           {:ok, %{node_name: remote_node}} ->
             # Attempt to connect to discovered node
