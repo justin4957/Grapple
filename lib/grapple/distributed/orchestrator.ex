@@ -10,7 +10,7 @@ defmodule Grapple.Distributed.Orchestrator do
   """
 
   use GenServer
-  alias Grapple.Distributed.{ClusterManager, LifecycleManager, ReplicationEngine, PlacementEngine}
+  alias Grapple.Distributed.{ClusterManager, LifecycleManager}
 
   @shutdown_phases [:prepare, :drain, :persist, :coordinate, :shutdown]
   @startup_phases [:initialize, :discover, :synchronize, :activate, :ready]
@@ -58,7 +58,7 @@ defmodule Grapple.Distributed.Orchestrator do
   end
 
   # GenServer callbacks
-  def init(opts) do
+  def init(_opts) do
     state = %__MODULE__{
       local_node: node(),
       orchestration_state: :active,
@@ -75,57 +75,42 @@ defmodule Grapple.Distributed.Orchestrator do
   end
 
   def handle_call({:initiate_shutdown, reason, timeout}, _from, state) do
-    case create_shutdown_plan(reason, timeout, state) do
-      {:ok, shutdown_plan} ->
-        # Start coordinated shutdown process
-        new_state = %{state | 
-          shutdown_plan: shutdown_plan,
-          orchestration_state: :shutting_down
-        }
-        
-        # Execute shutdown phases
-        case execute_shutdown_phases(shutdown_plan, new_state) do
-          {:ok, final_state} ->
-            {:reply, {:ok, :shutdown_complete}, final_state}
-          
-          {:error, reason} ->
-            {:reply, {:error, reason}, state}
-        end
-      
+    {:ok, shutdown_plan} = create_shutdown_plan(reason, timeout, state)
+    # Start coordinated shutdown process
+    new_state = %{state |
+      shutdown_plan: shutdown_plan,
+      orchestration_state: :shutting_down
+    }
+
+    # Execute shutdown phases
+    case execute_shutdown_phases(shutdown_plan, new_state) do
+      {:ok, final_state} ->
+        {:reply, {:ok, :shutdown_complete}, final_state}
+
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
   end
 
   def handle_call({:coordinate_startup, startup_mode}, _from, state) do
-    case create_startup_plan(startup_mode, state) do
-      {:ok, startup_plan} ->
-        new_state = %{state | 
-          startup_plan: startup_plan,
-          orchestration_state: :starting_up
-        }
-        
-        case execute_startup_phases(startup_plan, new_state) do
-          {:ok, final_state} ->
-            {:reply, {:ok, :startup_complete}, final_state}
-          
-          {:error, reason} ->
-            {:reply, {:error, reason}, state}
-        end
-      
+    {:ok, startup_plan} = create_startup_plan(startup_mode, state)
+    new_state = %{state |
+      startup_plan: startup_plan,
+      orchestration_state: :starting_up
+    }
+
+    case execute_startup_phases(startup_plan, new_state) do
+      {:ok, final_state} ->
+        {:reply, {:ok, :startup_complete}, final_state}
+
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
   end
 
   def handle_call({:emergency_failover, failed_nodes, target_nodes}, _from, state) do
-    case execute_emergency_failover(failed_nodes, target_nodes, state) do
-      {:ok, failover_result, new_state} ->
-        {:reply, {:ok, failover_result}, new_state}
-      
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
-    end
+    {:ok, failover_result, new_state} = execute_emergency_failover(failed_nodes, target_nodes, state)
+    {:reply, {:ok, failover_result}, new_state}
   end
 
   def handle_call(:get_orchestration_status, _from, state) do
@@ -140,13 +125,8 @@ defmodule Grapple.Distributed.Orchestrator do
   end
 
   def handle_call({:migrate_data, source_node, target_node, data_filter}, _from, state) do
-    case execute_data_migration(source_node, target_node, data_filter, state) do
-      {:ok, migration_result, new_state} ->
-        {:reply, {:ok, migration_result}, new_state}
-      
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
-    end
+    {:ok, migration_result, new_state} = execute_data_migration(source_node, target_node, data_filter, state)
+    {:reply, {:ok, migration_result}, new_state}
   end
 
   def handle_call(:pause_operations, _from, state) do
@@ -179,9 +159,9 @@ defmodule Grapple.Distributed.Orchestrator do
     :global.register_name(:grapple_orchestrator, self())
   end
 
-  defp create_shutdown_plan(reason, timeout, state) do
+  defp create_shutdown_plan(reason, timeout, _state) do
     cluster_info = ClusterManager.get_cluster_info()
-    
+
     # Analyze current data distribution
     data_analysis = analyze_cluster_data()
     
@@ -198,7 +178,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, shutdown_plan}
   end
 
-  defp create_shutdown_phases(data_analysis, cluster_info) do
+  defp create_shutdown_phases(_data_analysis, _cluster_info) do
     %{
       prepare: %{
         duration: 30,
@@ -256,26 +236,20 @@ defmodule Grapple.Distributed.Orchestrator do
   end
 
   defp execute_shutdown_phases(shutdown_plan, state) do
-    start_time = System.system_time(:second)
-    
-    Enum.reduce_while(@shutdown_phases, {:ok, state}, fn phase, {:ok, acc_state} ->
+    _start_time = System.system_time(:second)
+
+    Enum.reduce(@shutdown_phases, {:ok, state}, fn phase, {:ok, acc_state} ->
       phase_plan = Map.get(shutdown_plan.phases, phase)
-      
+
       IO.puts("🔄 Executing shutdown phase: #{phase}")
-      
-      case execute_shutdown_phase(phase, phase_plan, acc_state) do
-        {:ok, new_state} ->
-          IO.puts("✅ Completed shutdown phase: #{phase}")
-          {:cont, {:ok, new_state}}
-        
-        {:error, reason} ->
-          IO.puts("❌ Failed shutdown phase: #{phase} - #{inspect(reason)}")
-          {:halt, {:error, {phase, reason}}}
-      end
+
+      {:ok, new_state} = execute_shutdown_phase(phase, phase_plan, acc_state)
+      IO.puts("✅ Completed shutdown phase: #{phase}")
+      {:ok, new_state}
     end)
   end
 
-  defp execute_shutdown_phase(:prepare, phase_plan, state) do
+  defp execute_shutdown_phase(:prepare, _phase_plan, state) do
     # Pause new operations
     broadcast_operation_pause()
     
@@ -288,7 +262,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :shutdown_prepare}}
   end
 
-  defp execute_shutdown_phase(:drain, phase_plan, state) do
+  defp execute_shutdown_phase(:drain, _phase_plan, state) do
     # Complete pending operations
     wait_for_operation_completion(30_000)
     
@@ -301,7 +275,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :shutdown_drain}}
   end
 
-  defp execute_shutdown_phase(:persist, phase_plan, state) do
+  defp execute_shutdown_phase(:persist, _phase_plan, state) do
     # Save critical cluster state
     save_cluster_state()
     
@@ -314,7 +288,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :shutdown_persist}}
   end
 
-  defp execute_shutdown_phase(:coordinate, phase_plan, state) do
+  defp execute_shutdown_phase(:coordinate, _phase_plan, state) do
     # Synchronize final state across cluster
     synchronize_final_cluster_state()
     
@@ -327,7 +301,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :shutdown_coordinate}}
   end
 
-  defp execute_shutdown_phase(:shutdown, phase_plan, state) do
+  defp execute_shutdown_phase(:shutdown, _phase_plan, state) do
     # Stop user services
     stop_user_services()
     
@@ -352,7 +326,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, startup_plan}
   end
 
-  defp create_startup_phases(startup_mode) do
+  defp create_startup_phases(_startup_mode) do
     %{
       initialize: %{
         duration: 30,
@@ -402,24 +376,18 @@ defmodule Grapple.Distributed.Orchestrator do
   end
 
   defp execute_startup_phases(startup_plan, state) do
-    Enum.reduce_while(@startup_phases, {:ok, state}, fn phase, {:ok, acc_state} ->
+    Enum.reduce(@startup_phases, {:ok, state}, fn phase, {:ok, acc_state} ->
       phase_plan = Map.get(startup_plan.phases, phase)
-      
+
       IO.puts("🚀 Executing startup phase: #{phase}")
-      
-      case execute_startup_phase(phase, phase_plan, acc_state) do
-        {:ok, new_state} ->
-          IO.puts("✅ Completed startup phase: #{phase}")
-          {:cont, {:ok, new_state}}
-        
-        {:error, reason} ->
-          IO.puts("❌ Failed startup phase: #{phase} - #{inspect(reason)}")
-          {:halt, {:error, {phase, reason}}}
-      end
+
+      {:ok, new_state} = execute_startup_phase(phase, phase_plan, acc_state)
+      IO.puts("✅ Completed startup phase: #{phase}")
+      {:ok, new_state}
     end)
   end
 
-  defp execute_startup_phase(:initialize, phase_plan, state) do
+  defp execute_startup_phase(:initialize, _phase_plan, state) do
     # Start core services
     start_core_services()
     
@@ -432,7 +400,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :startup_initialize}}
   end
 
-  defp execute_startup_phase(:discover, phase_plan, state) do
+  defp execute_startup_phase(:discover, _phase_plan, state) do
     # Discover peer nodes
     peers = discover_peer_nodes()
     
@@ -445,7 +413,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :startup_discover}}
   end
 
-  defp execute_startup_phase(:synchronize, phase_plan, state) do
+  defp execute_startup_phase(:synchronize, _phase_plan, state) do
     # Synchronize cluster state
     synchronize_cluster_state()
     
@@ -458,7 +426,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :startup_synchronize}}
   end
 
-  defp execute_startup_phase(:activate, phase_plan, state) do
+  defp execute_startup_phase(:activate, _phase_plan, state) do
     # Activate replication
     activate_replication_services()
     
@@ -471,7 +439,7 @@ defmodule Grapple.Distributed.Orchestrator do
     {:ok, %{state | orchestration_state: :startup_activate}}
   end
 
-  defp execute_startup_phase(:ready, phase_plan, state) do
+  defp execute_startup_phase(:ready, _phase_plan, state) do
     # Resume user operations
     resume_user_operations()
     
@@ -581,7 +549,7 @@ defmodule Grapple.Distributed.Orchestrator do
     :ok
   end
 
-  defp wait_for_operation_completion(timeout) do
+  defp wait_for_operation_completion(_timeout) do
     # Wait for pending operations to complete
     :timer.sleep(1000)  # Simplified - should check actual operations
   end
@@ -745,43 +713,43 @@ defmodule Grapple.Distributed.Orchestrator do
   end
 
   # Helper functions for emergency operations
-  defp assess_data_at_risk(failed_nodes) do
+  defp assess_data_at_risk(_failed_nodes) do
     # Quick assessment of data that needs immediate migration
     # Placeholder - would query actual data placement
     []
   end
 
-  defp select_failover_target(target_nodes, data_key) do
+  defp select_failover_target(target_nodes, _data_key) do
     # Select best target node for data migration
     hd(target_nodes)
   end
 
-  defp migrate_data_emergency(data_key, source_node, target_node) do
+  defp migrate_data_emergency(data_key, _source_node, target_node) do
     # Emergency data migration
     {:ok, %{key: data_key, target: target_node}}
   end
 
-  defp update_cluster_topology_for_failover(failed_nodes, target_nodes) do
+  defp update_cluster_topology_for_failover(_failed_nodes, _target_nodes) do
     # Update cluster topology records
     IO.puts("🔄 Updating cluster topology")
   end
 
-  defp get_migration_data(source_node, data_filter) do
+  defp get_migration_data(_source_node, _data_filter) do
     # Get data to migrate based on filter
     []  # Placeholder
   end
 
-  defp migrate_data_chunks(data_to_migrate, source_node, target_node) do
+  defp migrate_data_chunks(data_to_migrate, _source_node, _target_node) do
     # Migrate data in manageable chunks
     %{migrated: length(data_to_migrate)}
   end
 
-  defp update_placement_records(migration_result, target_node) do
+  defp update_placement_records(_migration_result, _target_node) do
     # Update data placement records
     :ok
   end
 
-  defp verify_migration_completion(migration_result, target_node) do
+  defp verify_migration_completion(_migration_result, _target_node) do
     # Verify migration was successful
     true
   end

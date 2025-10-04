@@ -10,7 +10,6 @@ defmodule Grapple.Distributed.PersistenceManager do
   """
 
   use GenServer
-  alias Grapple.Distributed.{LifecycleManager, PlacementEngine}
   alias Grapple.Storage.EtsGraphStore
 
   @storage_tiers [:ets, :mnesia, :dets]
@@ -67,7 +66,7 @@ defmodule Grapple.Distributed.PersistenceManager do
   end
 
   # GenServer callbacks
-  def init(opts) do
+  def init(_opts) do
     state = %__MODULE__{
       local_node: node(),
       persistence_policies: initialize_default_policies(),
@@ -113,18 +112,13 @@ defmodule Grapple.Distributed.PersistenceManager do
   end
 
   def handle_call({:adapt_policy, data_key, usage_patterns}, _from, state) do
-    case create_adaptive_policy(data_key, usage_patterns, state) do
-      {:ok, adapted_policy, new_state} ->
-        case apply_persistence_policy_internal(data_key, adapted_policy, new_state) do
-          {:ok, placement_result, final_state} ->
-            {:reply, {:ok, {adapted_policy, placement_result}}, final_state}
-          
-          {:error, reason} ->
-            {:reply, {:error, reason}, new_state}
-        end
-      
+    {:ok, adapted_policy, new_state} = create_adaptive_policy(data_key, usage_patterns, state)
+    case apply_persistence_policy_internal(data_key, adapted_policy, new_state) do
+      {:ok, placement_result, final_state} ->
+        {:reply, {:ok, {adapted_policy, placement_result}}, final_state}
+
       {:error, reason} ->
-        {:reply, {:error, reason}, state}
+        {:reply, {:error, reason}, new_state}
     end
   end
 
@@ -295,7 +289,7 @@ defmodule Grapple.Distributed.PersistenceManager do
 
   defp apply_persistence_policy_internal(data_key, policy, state) do
     # Determine current data characteristics
-    data_characteristics = analyze_data_characteristics(data_key)
+    _data_characteristics = analyze_data_characteristics(data_key)
     
     # Calculate optimal tier based on policy and characteristics
     target_tier = policy.primary_tier
@@ -367,7 +361,7 @@ defmodule Grapple.Distributed.PersistenceManager do
     {:ok, adapted_policy, new_state}
   end
 
-  defp classify_data_by_patterns(access_frequency, data_size, access_pattern) do
+  defp classify_data_by_patterns(access_frequency, data_size, _access_pattern) do
     cond do
       access_frequency > 100 and data_size < 100_000 -> :hot
       access_frequency > 10 and data_size < 1_000_000 -> :warm
@@ -399,11 +393,8 @@ defmodule Grapple.Distributed.PersistenceManager do
               reason: reason,
               timestamp: System.system_time(:second)
             }
-            
+
             {:ok, migration_result, new_state}
-          
-          {:error, reason} ->
-            {:error, reason}
         end
       
       {:error, reason} ->
@@ -495,7 +486,7 @@ defmodule Grapple.Distributed.PersistenceManager do
   defp identify_optimization_candidates(state) do
     # Simple optimization logic - in production would be more sophisticated
     state.policy_adaptations
-    |> Enum.filter(fn {_data_key, {policy, timestamp}} ->
+    |> Enum.filter(fn {_data_key, {_policy, timestamp}} ->
       # Consider adaptations older than 1 hour for re-evaluation
       System.system_time(:second) - timestamp > 3600
     end)
@@ -543,7 +534,7 @@ defmodule Grapple.Distributed.PersistenceManager do
 
   defp process_migration_queue(state) do
     case :queue.out(state.migration_queue) do
-      {{:value, {:migrate, data_key, from_tier, to_tier, reason}}, new_queue} ->
+      {{:value, {:migrate, data_key, _from_tier, to_tier, reason}}, new_queue} ->
         # Process migration
         case execute_tier_migration(data_key, to_tier, reason, state) do
           {:ok, _result, new_state} ->
@@ -662,7 +653,7 @@ defmodule Grapple.Distributed.PersistenceManager do
     end
   end
 
-  defp update_tier_utilization_after_migration(data_key, data, from_tier, to_tier, state) do
+  defp update_tier_utilization_after_migration(_data_key, data, from_tier, to_tier, state) do
     data_size = :erlang.external_size(data)
     
     # Update from_tier utilization
