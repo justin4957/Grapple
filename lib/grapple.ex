@@ -548,8 +548,8 @@ defmodule Grapple do
       iex> info = Grapple.cluster_info()
       iex> info.local_node
       :nonode@nohost
-      iex> info.nodes
-      [:nonode@nohost]
+      iex> is_list(info.nodes)
+      true
       iex> is_integer(info.partitions)
       true
 

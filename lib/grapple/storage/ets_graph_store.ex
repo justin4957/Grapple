@@ -5,6 +5,7 @@ defmodule Grapple.Storage.EtsGraphStore do
   """
 
   use GenServer
+  alias Grapple.{Validation, Error}
 
   defstruct [
     :nodes_table,
@@ -168,54 +169,70 @@ defmodule Grapple.Storage.EtsGraphStore do
 
   # GenServer callbacks
   def handle_call({:create_node, properties}, _from, state) do
-    node_id = state.node_id_counter
-    node_data = %{id: node_id, properties: properties}
-    
-    # Insert node
-    :ets.insert(state.nodes_table, {node_id, node_data})
-    
-    # Initialize adjacency lists
-    :ets.insert(state.node_edges_out_table, {node_id, []})
-    :ets.insert(state.node_edges_in_table, {node_id, []})
-    
-    # Index properties
-    Enum.each(properties, fn {key, value} ->
-      :ets.insert(state.property_index_table, {{key, value}, node_id})
-    end)
-    
-    new_state = %{state | node_id_counter: node_id + 1}
-    {:reply, {:ok, node_id}, new_state}
+    case Validation.validate_node_properties(properties) do
+      {:ok, validated_properties} ->
+        node_id = state.node_id_counter
+        node_data = %{id: node_id, properties: validated_properties}
+
+        # Insert node
+        :ets.insert(state.nodes_table, {node_id, node_data})
+
+        # Initialize adjacency lists
+        :ets.insert(state.node_edges_out_table, {node_id, []})
+        :ets.insert(state.node_edges_in_table, {node_id, []})
+
+        # Index properties
+        Enum.each(validated_properties, fn {key, value} ->
+          :ets.insert(state.property_index_table, {{key, value}, node_id})
+        end)
+
+        new_state = %{state | node_id_counter: node_id + 1}
+        {:reply, {:ok, node_id}, new_state}
+
+      {:error, _reason, _message, _opts} = error ->
+        {:reply, error, state}
+    end
   end
 
   def handle_call({:create_edge, from_node, to_node, label, properties}, _from, state) do
-    # Verify nodes exist
-    case {get_node(from_node), get_node(to_node)} do
-      {{:ok, _}, {:ok, _}} ->
-        edge_id = state.edge_id_counter
-        edge_data = %{
-          id: edge_id,
-          from: from_node,
-          to: to_node,
-          label: label,
-          properties: properties
-        }
-        
-        # Insert edge
-        :ets.insert(state.edges_table, {edge_id, edge_data})
-        
-        # Update adjacency lists
-        update_adjacency_list(state.node_edges_out_table, from_node, edge_id, :add)
-        update_adjacency_list(state.node_edges_in_table, to_node, edge_id, :add)
-        
-        # Index label
-        :ets.insert(state.label_index_table, {label, edge_id})
-        
-        new_state = %{state | edge_id_counter: edge_id + 1}
-        {:reply, {:ok, edge_id}, new_state}
-      
-      _ ->
-        {:reply, {:error, :node_not_found}, state}
+    with {:ok, _from_id} <- Validation.validate_id(from_node),
+         {:ok, _to_id} <- Validation.validate_id(to_node),
+         {:ok, validated_label} <- Validation.validate_edge_label(label),
+         {:ok, validated_properties} <- Validation.validate_node_properties(properties),
+         {:ok, _from_node_data} <- verify_node_exists(from_node),
+         {:ok, _to_node_data} <- verify_node_exists(to_node) do
+      edge_id = state.edge_id_counter
+      edge_data = %{
+        id: edge_id,
+        from: from_node,
+        to: to_node,
+        label: validated_label,
+        properties: validated_properties
+      }
+
+      # Insert edge
+      :ets.insert(state.edges_table, {edge_id, edge_data})
+
+      # Update adjacency lists
+      update_adjacency_list(state.node_edges_out_table, from_node, edge_id, :add)
+      update_adjacency_list(state.node_edges_in_table, to_node, edge_id, :add)
+
+      # Index label
+      :ets.insert(state.label_index_table, {validated_label, edge_id})
+
+      new_state = %{state | edge_id_counter: edge_id + 1}
+      {:reply, {:ok, edge_id}, new_state}
+    else
+      {:error, _reason, _message, _opts} = error ->
+        {:reply, error, state}
+
+      {:error, :not_found} ->
+        {:reply, Error.node_not_found("from_node or to_node"), state}
     end
+  end
+
+  defp verify_node_exists(node_id) do
+    get_node(node_id)
   end
 
   def handle_call({:delete_node, node_id}, _from, state) do
