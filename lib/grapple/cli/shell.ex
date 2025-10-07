@@ -67,6 +67,17 @@ defmodule Grapple.CLI.Shell do
       FIND NODES <prop> <value>          - Find nodes by property
       FIND EDGES <label>                 - Find edges by label
 
+    #{IO.ANSI.green()}Analytics:#{IO.ANSI.reset()}
+      ANALYTICS SUMMARY                  - Complete analytics summary
+      ANALYTICS PAGERANK                 - Calculate PageRank scores
+      ANALYTICS BETWEENNESS              - Calculate betweenness centrality
+      ANALYTICS CLOSENESS <node_id>      - Calculate closeness for node
+      ANALYTICS COMPONENTS               - Find connected components
+      ANALYTICS CLUSTERING               - Calculate clustering coefficient
+      ANALYTICS DENSITY                  - Calculate graph density
+      ANALYTICS DIAMETER                 - Calculate graph diameter
+      ANALYTICS DEGREES                  - Show degree distribution
+
     #{IO.ANSI.green()}Distributed Operations:#{IO.ANSI.reset()}
       CLUSTER STATUS                     - Show distributed cluster status
       CLUSTER JOIN <node>                - Join another cluster node
@@ -244,6 +255,154 @@ defmodule Grapple.CLI.Shell do
     IO.puts("    Nodes: #{stats.memory_usage.nodes} words")
     IO.puts("    Edges: #{stats.memory_usage.edges} words")
     IO.puts("    Indexes: #{stats.memory_usage.indexes} words")
+  end
+
+  defp handle_command("ANALYTICS SUMMARY") do
+    case Grapple.Analytics.summary() do
+      {:ok, summary} ->
+        IO.puts("#{IO.ANSI.cyan()}Analytics Summary:#{IO.ANSI.reset()}")
+        IO.puts("  Density: #{Float.round(summary.density, 4)}")
+        IO.puts("  Diameter: #{summary.diameter}")
+        IO.puts("  Components: #{summary.component_count}")
+        IO.puts("  Clustering Coefficient: #{Float.round(summary.clustering_coefficient, 4)}")
+        IO.puts("  Degree Distribution:")
+        IO.puts("    Min: #{summary.degree_distribution.min}")
+        IO.puts("    Max: #{summary.degree_distribution.max}")
+        IO.puts("    Mean: #{Float.round(summary.degree_distribution.mean, 2)}")
+        IO.puts("    Median: #{Float.round(summary.degree_distribution.median, 2)}")
+
+      {:error, reason} ->
+        IO.puts("❌ Analytics error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_command("ANALYTICS PAGERANK") do
+    case Grapple.Analytics.pagerank() do
+      {:ok, ranks} ->
+        IO.puts("#{IO.ANSI.cyan()}PageRank Scores (Top 10):#{IO.ANSI.reset()}")
+
+        ranks
+        |> Enum.sort_by(fn {_id, rank} -> -rank end)
+        |> Enum.take(10)
+        |> Enum.with_index(1)
+        |> Enum.each(fn {{node_id, rank}, index} ->
+          IO.puts("  #{index}. Node #{node_id}: #{Float.round(rank, 6)}")
+        end)
+
+      {:error, reason} ->
+        IO.puts("❌ PageRank error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_command("ANALYTICS BETWEENNESS") do
+    case Grapple.Analytics.betweenness_centrality() do
+      {:ok, betweenness} ->
+        IO.puts("#{IO.ANSI.cyan()}Betweenness Centrality (Top 10):#{IO.ANSI.reset()}")
+
+        betweenness
+        |> Enum.sort_by(fn {_id, score} -> -score end)
+        |> Enum.take(10)
+        |> Enum.with_index(1)
+        |> Enum.each(fn {{node_id, score}, index} ->
+          IO.puts("  #{index}. Node #{node_id}: #{Float.round(score, 4)}")
+        end)
+
+      {:error, reason} ->
+        IO.puts("❌ Betweenness error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_command("ANALYTICS CLOSENESS " <> node_id_str) do
+    case Integer.parse(String.trim(node_id_str)) do
+      {node_id, ""} ->
+        case Grapple.Analytics.closeness_centrality(node_id) do
+          {:ok, closeness} ->
+            IO.puts("Closeness Centrality for Node #{node_id}: #{Float.round(closeness, 6)}")
+
+          {:error, :node_not_found} ->
+            IO.puts("❌ Node #{node_id} not found")
+
+          {:error, reason} ->
+            IO.puts("❌ Error: #{inspect(reason)}")
+        end
+
+      _ ->
+        IO.puts("❌ Invalid node ID: #{node_id_str}")
+    end
+  end
+
+  defp handle_command("ANALYTICS COMPONENTS") do
+    case Grapple.Analytics.connected_components() do
+      {:ok, components} ->
+        IO.puts("#{IO.ANSI.cyan()}Connected Components: #{length(components)}#{IO.ANSI.reset()}")
+
+        components
+        |> Enum.with_index(1)
+        |> Enum.each(fn {component, index} ->
+          IO.puts("  Component #{index} (#{length(component)} nodes): #{Enum.join(Enum.take(component, 10), ", ")}#{if length(component) > 10, do: "...", else: ""}")
+        end)
+
+      {:error, reason} ->
+        IO.puts("❌ Components error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_command("ANALYTICS CLUSTERING") do
+    case Grapple.Analytics.clustering_coefficient() do
+      {:ok, coefficient} ->
+        IO.puts("Global Clustering Coefficient: #{Float.round(coefficient, 6)}")
+
+        interpretation =
+          cond do
+            coefficient < 0.1 -> "Very sparse network"
+            coefficient < 0.3 -> "Loosely connected"
+            coefficient < 0.6 -> "Moderately clustered"
+            true -> "Highly clustered"
+          end
+
+        IO.puts("  Interpretation: #{interpretation}")
+
+      {:error, reason} ->
+        IO.puts("❌ Clustering error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_command("ANALYTICS DENSITY") do
+    case Grapple.Analytics.graph_density() do
+      {:ok, density} ->
+        IO.puts("Graph Density: #{Float.round(density, 6)}")
+        percentage = Float.round(density * 100, 2)
+        IO.puts("  #{percentage}% of possible edges exist")
+
+      {:error, reason} ->
+        IO.puts("❌ Density error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_command("ANALYTICS DIAMETER") do
+    case Grapple.Analytics.graph_diameter() do
+      {:ok, diameter} ->
+        IO.puts("Graph Diameter: #{diameter}")
+        IO.puts("  (Maximum shortest path length)")
+
+      {:error, reason} ->
+        IO.puts("❌ Diameter error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_command("ANALYTICS DEGREES") do
+    case Grapple.Analytics.degree_distribution() do
+      {:ok, stats} ->
+        IO.puts("#{IO.ANSI.cyan()}Degree Distribution:#{IO.ANSI.reset()}")
+        IO.puts("  Min Degree: #{stats.min}")
+        IO.puts("  Max Degree: #{stats.max}")
+        IO.puts("  Mean Degree: #{Float.round(stats.mean, 2)}")
+        IO.puts("  Median Degree: #{Float.round(stats.median, 2)}")
+        IO.puts("  Std Deviation: #{Float.round(stats.std_dev, 2)}")
+
+      {:error, reason} ->
+        IO.puts("❌ Degree distribution error: #{inspect(reason)}")
+    end
   end
 
   defp handle_command("CLUSTER STATUS") do

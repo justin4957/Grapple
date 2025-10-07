@@ -176,6 +176,22 @@ defmodule Grapple.Storage.EtsGraphStore do
     GenServer.call(__MODULE__, {:delete_edge, edge_id})
   end
 
+  def list_nodes do
+    nodes =
+      :ets.tab2list(@nodes_table)
+      |> Enum.map(fn {_id, node_data} -> node_data end)
+
+    {:ok, nodes}
+  end
+
+  def list_edges do
+    edges =
+      :ets.tab2list(@edges_table)
+      |> Enum.map(fn {_id, edge_data} -> edge_data end)
+
+    {:ok, edges}
+  end
+
   def get_stats do
     %{
       total_nodes: :ets.info(@nodes_table, :size),
