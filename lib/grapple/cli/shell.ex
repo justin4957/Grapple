@@ -339,7 +339,9 @@ defmodule Grapple.CLI.Shell do
         components
         |> Enum.with_index(1)
         |> Enum.each(fn {component, index} ->
-          IO.puts("  Component #{index} (#{length(component)} nodes): #{Enum.join(Enum.take(component, 10), ", ")}#{if length(component) > 10, do: "...", else: ""}")
+          IO.puts(
+            "  Component #{index} (#{length(component)} nodes): #{Enum.join(Enum.take(component, 10), ", ")}#{if length(component) > 10, do: "...", else: ""}"
+          )
         end)
 
       {:error, reason} ->

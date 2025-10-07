@@ -154,7 +154,7 @@ defmodule Grapple.Analytics.Centrality do
 
         {new_queue, distances, predecessors} =
           Enum.reduce(neighbors, {new_queue, distances, predecessors}, fn neighbor,
-                                                                           {q, dist, pred} ->
+                                                                          {q, dist, pred} ->
             cond do
               # First time visiting this node
               !Map.has_key?(dist, neighbor) ->

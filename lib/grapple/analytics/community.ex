@@ -25,9 +25,10 @@ defmodule Grapple.Analytics.Community do
         uf = initialize_union_find(nodes)
 
         # Union all connected nodes
-        uf = Enum.reduce(edges, uf, fn edge, acc ->
-          union(acc, edge.from, edge.to)
-        end)
+        uf =
+          Enum.reduce(edges, uf, fn edge, acc ->
+            union(acc, edge.from, edge.to)
+          end)
 
         # Group nodes by their root
         components =
