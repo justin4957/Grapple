@@ -84,5 +84,6 @@ Comprehensive documentation is available with guides of varying completeness:
 - [Distributed Mode Guide](README_DISTRIBUTED.md) - Advanced clustering features (advancement relative)
 - [Architecture Overview](guides/advanced/architecture.md) - System design and internal mechanisms
 - [Performance Guide](guides/advanced/performance.md) - Optimization and tuning recommendations
+- [**Performance Monitoring & Benchmarking**](PERFORMANCE.md) - Comprehensive performance testing and monitoring tools
 
 Documentation may also be generated using [ExDoc](https://github.com/elixir-lang/ex_doc) and published on [HexDocs](https://hexdocs.pm). Upon successful publication, documentation will be accessible at <https://hexdocs.pm/grapple> (availability subject to external factors).

@@ -24,7 +24,9 @@ defmodule Grapple.MixProject do
   defp deps do
     [
       {:jason, "~> 1.4"},
-      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+      {:benchee, "~> 1.3", only: :dev, runtime: false},
+      {:benchee_html, "~> 1.0", only: :dev, runtime: false}
     ]
   end
 
