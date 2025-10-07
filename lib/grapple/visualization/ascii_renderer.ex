@@ -40,18 +40,13 @@ defmodule Grapple.Visualization.AsciiRenderer do
 
   def render_path(path, config \\ %{}) when is_list(path) do
     config = Map.merge(@default_config, config)
-    
-    case collect_path_data(path) do
-      {:ok, {nodes, edges}} ->
-        layout = calculate_linear_layout(nodes, edges, config)
-        render_path_layout(layout, config)
-      
-      {:error, reason} ->
-        "Error rendering path: #{reason}"
-    end
+
+    {:ok, {nodes, edges}} = collect_path_data(path)
+    layout = calculate_linear_layout(nodes, edges, config)
+    render_path_layout(layout, config)
   end
 
-  def render_graph_stats(config \\ %{}) do
+  def render_graph_stats(_config \\ %{}) do
     # Get basic graph statistics
     info = %{
       total_nodes: count_total_nodes(),
@@ -262,7 +257,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
   end
 
   defp create_empty_grid(config) do
-    for y <- 0..(config.max_height - 1) do
+    for _y <- 0..(config.max_height - 1) do
       for _x <- 0..(config.max_width - 1), do: " "
     end
   end
@@ -287,7 +282,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
     end
   end
 
-  defp place_edges(grid, layout, config) do
+  defp place_edges(grid, _layout, _config) do
     # Simple edge placement - just connect nodes with lines
     # This is a simplified version; real implementation would be more sophisticated
     grid

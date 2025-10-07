@@ -55,7 +55,7 @@ defmodule Grapple.Distributed.ReplicationEngine do
   end
 
   # GenServer callbacks
-  def init(opts) do
+  def init(_opts) do
     state = %__MODULE__{
       local_node: node(),
       replica_sets: %{},
@@ -74,15 +74,10 @@ defmodule Grapple.Distributed.ReplicationEngine do
   def handle_call({:replicate_data, key, data, replication_policy}, _from, state) do
     # Determine replication strategy
     strategy = get_replication_strategy(replication_policy, key, data, state)
-    
+
     # Create replica set
-    case create_replica_set(key, data, strategy, state) do
-      {:ok, replica_set, new_state} ->
-        {:reply, {:ok, replica_set}, new_state}
-      
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
-    end
+    {:ok, replica_set, new_state} = create_replica_set(key, data, strategy, state)
+    {:reply, {:ok, replica_set}, new_state}
   end
 
   def handle_call({:update_replica, key, updates, source_node}, _from, state) do
@@ -90,10 +85,10 @@ defmodule Grapple.Distributed.ReplicationEngine do
       {:ok, replica_set} ->
         # Create vector clock entry for this update
         vector_clock = advance_vector_clock(key, source_node, state)
-        
+
         # Apply update with conflict detection
         case apply_update_with_conflicts(key, updates, vector_clock, replica_set, state) do
-          {:ok, new_replica_set, new_state} ->
+          {:ok, _new_replica_set, new_state} ->
             {:reply, {:ok, :updated}, new_state}
           
           {:conflict, conflict_info, new_state} ->
@@ -109,19 +104,9 @@ defmodule Grapple.Distributed.ReplicationEngine do
   end
 
   def handle_call({:resolve_conflicts, key}, _from, state) do
-    case get_replica_set(key, state) do
-      {:ok, replica_set} ->
-        case resolve_replica_conflicts(replica_set, state) do
-          {:ok, resolved_data, new_state} ->
-            {:reply, {:ok, resolved_data}, new_state}
-          
-          {:error, reason} ->
-            {:reply, {:error, reason}, state}
-        end
-      
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
-    end
+    {:ok, replica_set} = get_replica_set(key, state)
+    {:ok, resolved_data, new_state} = resolve_replica_conflicts(replica_set, state)
+    {:reply, {:ok, resolved_data}, new_state}
   end
 
   def handle_call({:get_replica_health, key}, _from, state) do
@@ -154,6 +139,42 @@ defmodule Grapple.Distributed.ReplicationEngine do
       failover_events: count_failover_events(state)
     }
     {:reply, stats, state}
+  end
+
+  # Handle remote replication calls
+  def handle_call({:store_replica, key, data, strategy}, _from, state) do
+    # Store as replica on this node
+    replica = %{
+      node: node(),
+      data: data,
+      version: 1,
+      vector_clock: %{node() => 1},
+      last_updated: System.system_time(:second),
+      status: :replica,
+      conflicts: []
+    }
+
+    # Create or update replica set
+    replica_set = case Map.get(state.replica_sets, key) do
+      nil ->
+        %{
+          primary: node(),
+          replicas: [replica],
+          strategy: strategy,
+          last_sync: System.system_time(:second)
+        }
+
+      existing ->
+        %{existing |
+          replicas: [replica | existing.replicas],
+          last_sync: System.system_time(:second)
+        }
+    end
+
+    new_replica_sets = Map.put(state.replica_sets, key, replica_set)
+    new_state = %{state | replica_sets: new_replica_sets}
+
+    {:reply, :ok, new_state}
   end
 
   def handle_cast({:handle_node_failure, failed_node}, state) do
@@ -456,7 +477,7 @@ defmodule Grapple.Distributed.ReplicationEngine do
     %{state | replica_sets: new_replica_sets}
   end
 
-  defp propagate_update(key, updates, vector_clock, replica_set) do
+  defp propagate_update(key, updates, _vector_clock, replica_set) do
     # Async propagation to other replicas
     Task.start(fn ->
       remote_nodes = replica_set.replicas
@@ -757,7 +778,7 @@ defmodule Grapple.Distributed.ReplicationEngine do
     end
   end
 
-  defp get_access_frequency(key, state) do
+  defp get_access_frequency(key, _state) do
     # Try to get access patterns from placement engine
     try do
       case GenServer.call(PlacementEngine, {:get_access_count, key}, 1000) do
@@ -823,43 +844,5 @@ defmodule Grapple.Distributed.ReplicationEngine do
 
   defp schedule_consistency_check do
     Process.send_after(self(), :consistency_check, 30_000)  # Every 30 seconds
-  end
-
-  # Handle remote replication calls
-  def handle_call({:store_replica, key, data, strategy}, _from, state) do
-    # Store as replica on this node
-    replica = %{
-      node: node(),
-      data: data,
-      version: 1,
-      vector_clock: %{node() => 1},
-      last_updated: System.system_time(:second),
-      status: :replica,
-      conflicts: []
-    }
-    
-    # Create or update replica set
-    replica_set = case Map.get(state.replica_sets, key) do
-      nil ->
-        %{
-          key: key,
-          strategy: strategy,
-          replicas: [replica],
-          primary_node: nil,  # Remote primary
-          created_at: System.system_time(:second),
-          last_sync: System.system_time(:second)
-        }
-      
-      existing ->
-        %{existing | 
-          replicas: [replica | existing.replicas],
-          last_sync: System.system_time(:second)
-        }
-    end
-    
-    new_replica_sets = Map.put(state.replica_sets, key, replica_set)
-    new_state = %{state | replica_sets: new_replica_sets}
-    
-    {:reply, :ok, new_state}
   end
 end

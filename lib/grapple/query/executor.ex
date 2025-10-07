@@ -4,7 +4,6 @@ defmodule Grapple.Query.Executor do
   Handles distributed query execution across cluster nodes.
   """
 
-  alias Grapple.Storage.EtsGraphStore
   alias Grapple.Cluster.NodeManager
   alias Grapple.Query.EtsOptimizer
 
@@ -86,7 +85,7 @@ defmodule Grapple.Query.Executor do
     {:ok, results}
   end
 
-  defp execute_parsed_query(%{type: :create, pattern: _pattern}) do
+  defp execute_parsed_query(%{type: :create}) do
     # Handle node/edge creation
     {:ok, :created}
   end
@@ -94,78 +93,5 @@ defmodule Grapple.Query.Executor do
   def execute_local_match(_pattern) do
     # Local pattern matching implementation
     {:ok, []}
-  end
-
-  defp traverse_recursive([], _direction, _depth, _visited, acc) do
-    {:ok, Enum.reverse(acc)}
-  end
-
-  defp traverse_recursive(_nodes, _direction, 0, _visited, acc) do
-    {:ok, Enum.reverse(acc)}
-  end
-
-  defp traverse_recursive([node_id | rest], direction, depth, visited, acc) do
-    if MapSet.member?(visited, node_id) do
-      traverse_recursive(rest, direction, depth, visited, acc)
-    else
-      case EtsGraphStore.get_node(node_id) do
-        {:ok, node} ->
-          new_visited = MapSet.put(visited, node_id)
-          new_acc = [node | acc]
-          
-          {:ok, edges} = case direction do
-            :out -> EtsGraphStore.get_edges_from(node_id)
-            :in -> EtsGraphStore.get_edges_to(node_id)
-          end
-          
-          next_nodes = extract_connected_nodes(edges, direction)
-          
-          traverse_recursive(
-            next_nodes ++ rest,
-            direction,
-            depth - 1,
-            new_visited,
-            new_acc
-          )
-        
-        {:error, :not_found} ->
-          traverse_recursive(rest, direction, depth, visited, acc)
-      end
-    end
-  end
-
-  defp find_path_bfs([], _target, _max_depth, _visited) do
-    {:error, :path_not_found}
-  end
-
-  defp find_path_bfs([{current, path} | rest], target, max_depth, visited) do
-    cond do
-      current == target ->
-        {:ok, path}
-      
-      length(path) >= max_depth ->
-        find_path_bfs(rest, target, max_depth, visited)
-      
-      true ->
-        {:ok, edges} = EtsGraphStore.get_edges_from(current)
-        next_nodes = extract_connected_nodes(edges, :out)
-        
-        new_paths = 
-          next_nodes
-          |> Enum.reject(&MapSet.member?(visited, &1))
-          |> Enum.map(fn node -> {node, path ++ [node]} end)
-        
-        new_visited = Enum.reduce(next_nodes, visited, &MapSet.put(&2, &1))
-        
-        find_path_bfs(rest ++ new_paths, target, max_depth, new_visited)
-    end
-  end
-
-  defp extract_connected_nodes(edges, :out) do
-    edges |> Enum.map(fn {_from, edge} -> edge.to end)
-  end
-
-  defp extract_connected_nodes(edges, :in) do
-    edges |> Enum.map(fn {_from, edge} -> edge.from end)
   end
 end

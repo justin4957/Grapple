@@ -11,7 +11,7 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   use GenServer
   alias Grapple.Storage.EtsGraphStore
-  alias Grapple.Distributed.{LifecycleManager, ClusterManager}
+  alias Grapple.Distributed.LifecycleManager
 
   defstruct [
     :local_node,
@@ -51,7 +51,7 @@ defmodule Grapple.Distributed.PlacementEngine do
   end
 
   # GenServer callbacks
-  def init(opts) do
+  def init(_opts) do
     state = %__MODULE__{
       local_node: node(),
       placement_strategies: initialize_strategies(),
@@ -66,7 +66,7 @@ defmodule Grapple.Distributed.PlacementEngine do
     {:ok, state}
   end
 
-  def handle_call({:place_data, key, data, classification, opts}, _from, state) do
+  def handle_call({:place_data, key, data, classification, _opts}, _from, state) do
     # Get placement strategy from lifecycle manager
     {:ok, placement_strategy} = LifecycleManager.classify_data(key, classification)
     
@@ -86,27 +86,17 @@ defmodule Grapple.Distributed.PlacementEngine do
   end
 
   def handle_call({:relocate_data, key, new_classification}, _from, state) do
-    case get_current_locations(key) do
-      {:ok, current_locations} ->
-        # Get new placement strategy
-        {:ok, new_strategy} = LifecycleManager.classify_data(key, new_classification)
-        
-        # Create relocation plan
-        relocation_plan = create_relocation_plan(key, current_locations, new_strategy)
-        
-        # Execute relocation
-        case execute_relocation(relocation_plan) do
-          {:ok, new_locations} ->
-            new_state = update_access_patterns(key, new_locations, state)
-            {:reply, {:ok, new_locations}, new_state}
-          
-          {:error, reason} ->
-            {:reply, {:error, reason}, state}
-        end
-      
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
-    end
+    {:ok, current_locations} = get_current_locations(key)
+    # Get new placement strategy
+    {:ok, new_strategy} = LifecycleManager.classify_data(key, new_classification)
+
+    # Create relocation plan
+    relocation_plan = create_relocation_plan(key, current_locations, new_strategy)
+
+    # Execute relocation
+    {:ok, new_locations} = execute_relocation(relocation_plan)
+    new_state = update_access_patterns(key, new_locations, state)
+    {:reply, {:ok, new_locations}, new_state}
   end
 
   def handle_call({:get_data_location, key}, _from, state) do
@@ -123,6 +113,17 @@ defmodule Grapple.Distributed.PlacementEngine do
       access_patterns: get_access_pattern_summary(state)
     }
     {:reply, stats, state}
+  end
+
+  # Handle remote calls
+  def handle_call({:store_replica, key, data, tier}, _from, state) do
+    result = store_in_tier(key, data, tier)
+    {:reply, result, state}
+  end
+
+  def handle_call({:execute_placement, storage_plan}, _from, state) do
+    result = execute_placement(storage_plan)
+    {:reply, result, state}
   end
 
   def handle_cast(:optimize_placement, state) do
@@ -256,21 +257,21 @@ defmodule Grapple.Distributed.PlacementEngine do
     end
   end
 
-  defp store_in_ets(key, data) do
+  defp store_in_ets(_key, data) do
     # Determine if it's a node or edge based on data structure
     case data do
-      %{id: id, properties: properties} when not is_map_key(data, :from) ->
+      %{id: _id, properties: properties} when not is_map_key(data, :from) ->
         # It's a node
         EtsGraphStore.create_node(properties)
-      
-      %{id: id, from: from_id, to: to_id, label: label, properties: properties} ->
+
+      %{id: _id, from: from_id, to: to_id, label: label, properties: properties} ->
         # It's an edge
         EtsGraphStore.create_edge(from_id, to_id, label, properties)
-      
-      %{} = generic_data ->
+
+      %{} ->
         # Generic data - just store successfully for now
         :ok
-      
+
       _ ->
         # Fallback for simple data
         :ok
@@ -336,12 +337,11 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp execute_relocation(relocation_plan) do
     # Execute migration steps sequentially
-    Enum.reduce_while(relocation_plan.migration_steps, {:ok, []}, fn step, {:ok, acc} ->
-      case execute_migration_step(step) do
-        {:ok, result} -> {:cont, {:ok, [result | acc]}}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
+    results = Enum.map(relocation_plan.migration_steps, fn step ->
+      {:ok, result} = execute_migration_step(step)
+      result
     end)
+    {:ok, results}
   end
 
   defp calculate_migration_steps(_current_locations, _new_strategy) do
@@ -571,16 +571,5 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp schedule_optimization do
     Process.send_after(self(), :periodic_optimization, 60_000)  # Every minute
-  end
-
-  # Handle remote calls
-  def handle_call({:store_replica, key, data, tier}, _from, state) do
-    result = store_in_tier(key, data, tier)
-    {:reply, result, state}
-  end
-
-  def handle_call({:execute_placement, storage_plan}, _from, state) do
-    result = execute_placement(storage_plan)
-    {:reply, result, state}
   end
 end
