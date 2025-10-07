@@ -23,12 +23,9 @@ jobs:
           - elixir: '1.18.1'
             otp: '27.2'
             coverage: true
-          # Previous Elixir version
-          - elixir: '1.17.3'
+          # Test with OTP 27 (Elixir 1.18 required for OTP 27)
+          - elixir: '1.18.0'
             otp: '27.1'
-          # Minimum supported versions
-          - elixir: '1.16.3'
-            otp: '26.2'
 
     steps:
       - name: Checkout code

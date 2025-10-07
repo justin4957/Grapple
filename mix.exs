@@ -90,7 +90,7 @@ defmodule Grapple.MixProject do
           Grapple.CLI.Shell,
           Grapple.CLI.Autocomplete
         ],
-        "Visualization": [
+        Visualization: [
           Grapple.Visualization.AsciiRenderer
         ],
         "Basic Clustering": [
@@ -110,7 +110,7 @@ defmodule Grapple.MixProject do
         "Replication & Consistency": [
           Grapple.Distributed.ReplicationEngine
         ],
-        "Orchestration": [
+        Orchestration: [
           Grapple.Distributed.Orchestrator
         ]
       ]

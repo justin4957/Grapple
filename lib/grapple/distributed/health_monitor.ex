@@ -5,7 +5,7 @@ defmodule Grapple.Distributed.HealthMonitor do
   """
 
   use GenServer
-  
+
   @heartbeat_interval 5_000
   @failure_threshold 3
   @recovery_timeout 30_000
@@ -29,13 +29,13 @@ defmodule Grapple.Distributed.HealthMonitor do
       failure_counts: %{},
       recovery_tasks: %{}
     }
-    
+
     # Start heartbeat timer
     schedule_heartbeat()
-    
+
     # Monitor node events
     :net_kernel.monitor_nodes(true)
-    
+
     {:ok, state}
   end
 
@@ -57,7 +57,7 @@ defmodule Grapple.Distributed.HealthMonitor do
       recovering_nodes: Map.keys(state.recovery_tasks),
       overall_status: calculate_overall_status(state)
     }
-    
+
     {:reply, cluster_health, state}
   end
 
@@ -69,10 +69,10 @@ defmodule Grapple.Distributed.HealthMonitor do
   def handle_info(:heartbeat, state) do
     # Perform regular health monitoring
     new_state = perform_health_check(state)
-    
+
     # Schedule next heartbeat
     schedule_heartbeat()
-    
+
     {:noreply, new_state}
   end
 
@@ -80,16 +80,17 @@ defmodule Grapple.Distributed.HealthMonitor do
     # New node joined - start monitoring it
     new_monitored = MapSet.put(state.monitored_nodes, node)
     new_failure_counts = Map.put(state.failure_counts, node, 0)
-    
+
     # Cancel any recovery tasks for this node
     new_recovery_tasks = Map.delete(state.recovery_tasks, node)
-    
-    new_state = %{state | 
-      monitored_nodes: new_monitored,
-      failure_counts: new_failure_counts,
-      recovery_tasks: new_recovery_tasks
+
+    new_state = %{
+      state
+      | monitored_nodes: new_monitored,
+        failure_counts: new_failure_counts,
+        recovery_tasks: new_recovery_tasks
     }
-    
+
     {:noreply, new_state}
   end
 
@@ -97,9 +98,9 @@ defmodule Grapple.Distributed.HealthMonitor do
     # Node went down - increment failure count
     current_failures = Map.get(state.failure_counts, node, 0)
     new_failure_counts = Map.put(state.failure_counts, node, current_failures + 1)
-    
+
     new_state = %{state | failure_counts: new_failure_counts}
-    
+
     # Check if this constitutes a failure
     if current_failures + 1 >= @failure_threshold do
       handle_node_failure(node, new_state)
@@ -112,10 +113,10 @@ defmodule Grapple.Distributed.HealthMonitor do
     # Recovery timed out - remove from recovery tasks
     new_recovery_tasks = Map.delete(state.recovery_tasks, node)
     new_state = %{state | recovery_tasks: new_recovery_tasks}
-    
+
     # Mark node as permanently failed (for now)
     mark_node_as_failed(node)
-    
+
     {:noreply, new_state}
   end
 
@@ -128,28 +129,26 @@ defmodule Grapple.Distributed.HealthMonitor do
     # Get current cluster state
     cluster_info = Grapple.Distributed.ClusterManager.get_cluster_info()
     active_nodes = MapSet.new(cluster_info.nodes)
-    
+
     # Update monitored nodes
     new_monitored = MapSet.union(state.monitored_nodes, active_nodes)
-    
+
     # Reset failure counts for nodes that are back up
-    new_failure_counts = state.failure_counts
-    |> Enum.filter(fn {node, _count} -> not MapSet.member?(active_nodes, node) end)
-    |> Enum.into(%{})
-    
-    %{state | 
-      monitored_nodes: new_monitored,
-      failure_counts: new_failure_counts
-    }
+    new_failure_counts =
+      state.failure_counts
+      |> Enum.filter(fn {node, _count} -> not MapSet.member?(active_nodes, node) end)
+      |> Enum.into(%{})
+
+    %{state | monitored_nodes: new_monitored, failure_counts: new_failure_counts}
   end
 
   defp handle_node_failure(failed_node, state) do
     # Trigger basic recovery procedures
     recovery_ref = start_node_recovery(failed_node)
-    
+
     new_recovery_tasks = Map.put(state.recovery_tasks, failed_node, recovery_ref)
     new_state = %{state | recovery_tasks: new_recovery_tasks}
-    
+
     {:noreply, new_state}
   end
 
@@ -157,29 +156,29 @@ defmodule Grapple.Distributed.HealthMonitor do
     # Schedule recovery timeout
     recovery_ref = make_ref()
     Process.send_after(self(), {:recovery_timeout, failed_node}, @recovery_timeout)
-    
+
     # Start basic recovery procedures in background
     spawn(fn -> execute_node_recovery(failed_node) end)
-    
+
     recovery_ref
   end
 
   defp execute_node_recovery(failed_node) do
     # Basic recovery steps - can be enhanced later
-    
+
     # 1. Wait a moment for transient failures
     :timer.sleep(1000)
-    
+
     # 2. Attempt to reconnect
     case Node.connect(failed_node) do
       true ->
         # Node reconnected successfully
         :ok
-        
+
       false ->
         # 3. Redistribute data partitions (minimal implementation)
         redistribute_partitions_from_failed_node(failed_node)
-        
+
         # 4. Update cluster state
         update_cluster_after_failure(failed_node)
     end
@@ -197,7 +196,7 @@ defmodule Grapple.Distributed.HealthMonitor do
       case :mnesia.read(:cluster_nodes, failed_node) do
         [{:cluster_nodes, ^failed_node, _, join_time, capabilities}] ->
           :mnesia.write({:cluster_nodes, failed_node, :failed, join_time, capabilities})
-        
+
         [] ->
           :ok
       end
@@ -217,7 +216,7 @@ defmodule Grapple.Distributed.HealthMonitor do
   defp calculate_overall_status(state) do
     total_monitored = MapSet.size(state.monitored_nodes)
     failed_count = length(get_failed_nodes(state))
-    
+
     cond do
       total_monitored == 0 -> :unknown
       failed_count == 0 -> :healthy

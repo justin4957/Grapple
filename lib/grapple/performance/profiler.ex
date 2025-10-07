@@ -218,17 +218,20 @@ defmodule Grapple.Performance.Profiler do
   @spec regression_test(map()) :: map()
   def regression_test(baseline_metrics \\ %{}) do
     tests = [
-      {:create_node, fn ->
-        Grapple.create_node(%{name: "Test", role: "Engineer", value: 42})
-      end},
-      {:get_node, fn ->
-        {:ok, id} = Grapple.create_node(%{name: "Test"})
-        Grapple.get_node(id)
-      end},
-      {:find_nodes_by_property, fn ->
-        Grapple.create_node(%{category: "test"})
-        Grapple.find_nodes_by_property(:category, "test")
-      end}
+      {:create_node,
+       fn ->
+         Grapple.create_node(%{name: "Test", role: "Engineer", value: 42})
+       end},
+      {:get_node,
+       fn ->
+         {:ok, id} = Grapple.create_node(%{name: "Test"})
+         Grapple.get_node(id)
+       end},
+      {:find_nodes_by_property,
+       fn ->
+         Grapple.create_node(%{category: "test"})
+         Grapple.find_nodes_by_property(:category, "test")
+       end}
     ]
 
     results =
@@ -364,7 +367,10 @@ defmodule Grapple.Performance.Profiler do
 
     recommendations =
       if total_ets_memory > 1_000_000_000 do
-        ["ETS memory usage is high (>1GB) - consider implementing data archival" | recommendations]
+        [
+          "ETS memory usage is high (>1GB) - consider implementing data archival"
+          | recommendations
+        ]
       else
         recommendations
       end

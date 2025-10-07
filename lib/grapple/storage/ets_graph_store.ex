@@ -9,7 +9,7 @@ defmodule Grapple.Storage.EtsGraphStore do
 
   defstruct [
     :nodes_table,
-    :edges_table, 
+    :edges_table,
     :node_edges_out_table,
     :node_edges_in_table,
     :property_index_table,
@@ -32,12 +32,23 @@ defmodule Grapple.Storage.EtsGraphStore do
 
   def init(_opts) do
     # Create ETS tables with optimized configurations
-    nodes_table = create_table(@nodes_table, [:set, :named_table, :public, {:read_concurrency, true}])
-    edges_table = create_table(@edges_table, [:set, :named_table, :public, {:read_concurrency, true}])
-    node_edges_out_table = create_table(@node_edges_out_table, [:set, :named_table, :public, {:read_concurrency, true}])
-    node_edges_in_table = create_table(@node_edges_in_table, [:set, :named_table, :public, {:read_concurrency, true}])
-    property_index_table = create_table(@property_index_table, [:bag, :named_table, :public, {:read_concurrency, true}])
-    label_index_table = create_table(@label_index_table, [:bag, :named_table, :public, {:read_concurrency, true}])
+    nodes_table =
+      create_table(@nodes_table, [:set, :named_table, :public, {:read_concurrency, true}])
+
+    edges_table =
+      create_table(@edges_table, [:set, :named_table, :public, {:read_concurrency, true}])
+
+    node_edges_out_table =
+      create_table(@node_edges_out_table, [:set, :named_table, :public, {:read_concurrency, true}])
+
+    node_edges_in_table =
+      create_table(@node_edges_in_table, [:set, :named_table, :public, {:read_concurrency, true}])
+
+    property_index_table =
+      create_table(@property_index_table, [:bag, :named_table, :public, {:read_concurrency, true}])
+
+    label_index_table =
+      create_table(@label_index_table, [:bag, :named_table, :public, {:read_concurrency, true}])
 
     # Initialize query cache
     Grapple.Query.EtsOptimizer.init_cache()
@@ -82,7 +93,7 @@ defmodule Grapple.Storage.EtsGraphStore do
   def get_edges_from(node_id) do
     case :ets.lookup(@node_edges_out_table, node_id) do
       [{^node_id, edge_ids}] ->
-        edges = 
+        edges =
           edge_ids
           |> Enum.map(fn edge_id ->
             case :ets.lookup(@edges_table, edge_id) do
@@ -91,15 +102,18 @@ defmodule Grapple.Storage.EtsGraphStore do
             end
           end)
           |> Enum.reject(&is_nil/1)
+
         {:ok, edges}
-      [] -> {:ok, []}
+
+      [] ->
+        {:ok, []}
     end
   end
 
   def get_edges_to(node_id) do
     case :ets.lookup(@node_edges_in_table, node_id) do
       [{^node_id, edge_ids}] ->
-        edges = 
+        edges =
           edge_ids
           |> Enum.map(fn edge_id ->
             case :ets.lookup(@edges_table, edge_id) do
@@ -108,8 +122,11 @@ defmodule Grapple.Storage.EtsGraphStore do
             end
           end)
           |> Enum.reject(&is_nil/1)
+
         {:ok, edges}
-      [] -> {:ok, []}
+
+      [] ->
+        {:ok, []}
     end
   end
 
@@ -117,7 +134,8 @@ defmodule Grapple.Storage.EtsGraphStore do
     case :ets.lookup(@property_index_table, {key, value}) do
       objects ->
         node_ids = objects |> Enum.map(fn {{_key, _value}, node_id} -> node_id end)
-        nodes = 
+
+        nodes =
           node_ids
           |> Enum.map(fn node_id ->
             case get_node(node_id) do
@@ -126,6 +144,7 @@ defmodule Grapple.Storage.EtsGraphStore do
             end
           end)
           |> Enum.reject(&is_nil/1)
+
         {:ok, nodes}
     end
   end
@@ -134,7 +153,8 @@ defmodule Grapple.Storage.EtsGraphStore do
     case :ets.lookup(@label_index_table, label) do
       objects ->
         edge_ids = objects |> Enum.map(fn {_label, edge_id} -> edge_id end)
-        edges = 
+
+        edges =
           edge_ids
           |> Enum.map(fn edge_id ->
             case get_edge(edge_id) do
@@ -143,6 +163,7 @@ defmodule Grapple.Storage.EtsGraphStore do
             end
           end)
           |> Enum.reject(&is_nil/1)
+
         {:ok, edges}
     end
   end
@@ -162,7 +183,8 @@ defmodule Grapple.Storage.EtsGraphStore do
       memory_usage: %{
         nodes: :ets.info(@nodes_table, :memory),
         edges: :ets.info(@edges_table, :memory),
-        indexes: :ets.info(@property_index_table, :memory) + :ets.info(@label_index_table, :memory)
+        indexes:
+          :ets.info(@property_index_table, :memory) + :ets.info(@label_index_table, :memory)
       }
     }
   end
@@ -202,6 +224,7 @@ defmodule Grapple.Storage.EtsGraphStore do
          {:ok, _from_node_data} <- verify_node_exists(from_node),
          {:ok, _to_node_data} <- verify_node_exists(to_node) do
       edge_id = state.edge_id_counter
+
       edge_data = %{
         id: edge_id,
         from: from_node,
@@ -237,24 +260,25 @@ defmodule Grapple.Storage.EtsGraphStore do
         # Remove all edges connected to this node
         {:ok, outgoing_edges} = get_edges_from(node_id)
         {:ok, incoming_edges} = get_edges_to(node_id)
-        
+
         all_edges = outgoing_edges ++ incoming_edges
+
         Enum.each(all_edges, fn {_from, edge} ->
           delete_edge_internal(edge.id, state)
         end)
-        
+
         # Remove property indexes
         Enum.each(node.properties, fn {key, value} ->
           :ets.delete_object(state.property_index_table, {{key, value}, node_id})
         end)
-        
+
         # Remove node and adjacency lists
         :ets.delete(state.nodes_table, node_id)
         :ets.delete(state.node_edges_out_table, node_id)
         :ets.delete(state.node_edges_in_table, node_id)
-        
+
         {:reply, :ok, state}
-      
+
       {:error, :not_found} ->
         {:reply, {:error, :not_found}, state}
     end
@@ -269,10 +293,13 @@ defmodule Grapple.Storage.EtsGraphStore do
   defp verify_node_exists(node_id) do
     get_node(node_id)
   end
+
   defp create_table(name, opts) do
     case :ets.info(name) do
-      :undefined -> :ets.new(name, opts)
-      _ -> 
+      :undefined ->
+        :ets.new(name, opts)
+
+      _ ->
         :ets.delete(name)
         :ets.new(name, opts)
     end
@@ -283,6 +310,7 @@ defmodule Grapple.Storage.EtsGraphStore do
       [{^node_id, edge_ids}] ->
         new_edge_ids = [edge_id | edge_ids] |> Enum.uniq()
         :ets.insert(table, {node_id, new_edge_ids})
+
       [] ->
         :ets.insert(table, {node_id, [edge_id]})
     end
@@ -293,6 +321,7 @@ defmodule Grapple.Storage.EtsGraphStore do
       [{^node_id, edge_ids}] ->
         new_edge_ids = List.delete(edge_ids, edge_id)
         :ets.insert(table, {node_id, new_edge_ids})
+
       [] ->
         :ok
     end
@@ -304,15 +333,15 @@ defmodule Grapple.Storage.EtsGraphStore do
         # Remove from adjacency lists
         update_adjacency_list(state.node_edges_out_table, edge.from, edge_id, :remove)
         update_adjacency_list(state.node_edges_in_table, edge.to, edge_id, :remove)
-        
+
         # Remove from label index
         :ets.delete_object(state.label_index_table, {edge.label, edge_id})
-        
+
         # Remove edge
         :ets.delete(state.edges_table, edge_id)
-        
+
         :ok
-      
+
       {:error, :not_found} ->
         {:error, :not_found}
     end

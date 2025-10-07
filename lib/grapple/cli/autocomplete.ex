@@ -6,7 +6,7 @@ defmodule Grapple.CLI.Autocomplete do
 
   @commands [
     "CREATE NODE",
-    "CREATE EDGE", 
+    "CREATE EDGE",
     "MATCH",
     "TRAVERSE",
     "PATH",
@@ -42,7 +42,7 @@ defmodule Grapple.CLI.Autocomplete do
 
   def get_completions(input) do
     input = String.trim(input)
-    
+
     if String.length(input) == 0 do
       @commands
     else
@@ -61,18 +61,18 @@ defmodule Grapple.CLI.Autocomplete do
 
   def complete_command(input) do
     completions = get_completions(input)
-    
+
     case completions do
       [] ->
         {:no_match, input, []}
-        
+
       [single_match] ->
         if String.upcase(single_match) == String.upcase(input) do
           {:exact_match, input, get_command_pattern(single_match)}
         else
           {:single_match, single_match, get_command_pattern(single_match)}
         end
-        
+
       multiple_matches ->
         common_prefix = find_common_prefix(multiple_matches, String.upcase(input))
         {:multiple_matches, common_prefix, multiple_matches}
@@ -81,7 +81,7 @@ defmodule Grapple.CLI.Autocomplete do
 
   def suggest_similar_commands(input) do
     input_upper = String.upcase(input)
-    
+
     @commands
     |> Enum.map(fn cmd ->
       {cmd, string_similarity(input_upper, String.upcase(cmd))}
@@ -96,28 +96,30 @@ defmodule Grapple.CLI.Autocomplete do
     case length(completions) do
       0 ->
         "No matching commands found."
-        
+
       1 ->
         command = List.first(completions)
         pattern = get_command_pattern(command)
+
         if pattern != "" do
           "#{command} #{pattern}"
         else
           command
         end
-        
+
       _ ->
         "Available commands:\n" <>
-        (completions
-         |> Enum.map(fn cmd ->
-           pattern = get_command_pattern(cmd)
-           if pattern != "" do
-             "  #{cmd} #{pattern}"
-           else
-             "  #{cmd}"
-           end
-         end)
-         |> Enum.join("\n"))
+          (completions
+           |> Enum.map(fn cmd ->
+             pattern = get_command_pattern(cmd)
+
+             if pattern != "" do
+               "  #{cmd} #{pattern}"
+             else
+               "  #{cmd}"
+             end
+           end)
+           |> Enum.join("\n"))
     end
   end
 
@@ -130,17 +132,18 @@ defmodule Grapple.CLI.Autocomplete do
         else
           {:completed, input}
         end
-        
+
       {:single_match, completion, pattern} ->
         if pattern != "" do
           IO.puts("\nUsage: #{completion} #{pattern}")
         end
+
         {:completed, completion}
-        
+
       {:multiple_matches, common_prefix, matches} ->
         IO.puts("\n" <> format_suggestions(matches))
         {:partial, common_prefix}
-        
+
       {:no_match, input, suggestions} ->
         if length(suggestions) > 0 do
           IO.puts("\nDid you mean:")
@@ -148,6 +151,7 @@ defmodule Grapple.CLI.Autocomplete do
         else
           IO.puts("\nNo matching commands found. Type 'help' for available commands.")
         end
+
         {:no_completion, input}
     end
   end
@@ -161,6 +165,7 @@ defmodule Grapple.CLI.Autocomplete do
     |> case do
       prefix when byte_size(prefix) > byte_size(current_input) ->
         prefix
+
       _ ->
         current_input
     end
@@ -179,10 +184,10 @@ defmodule Grapple.CLI.Autocomplete do
     # Simple Jaccard similarity for command suggestions
     set1 = str1 |> String.graphemes() |> MapSet.new()
     set2 = str2 |> String.graphemes() |> MapSet.new()
-    
+
     intersection_size = MapSet.intersection(set1, set2) |> MapSet.size()
     union_size = MapSet.union(set1, set2) |> MapSet.size()
-    
+
     if union_size == 0 do
       0.0
     else
@@ -192,23 +197,23 @@ defmodule Grapple.CLI.Autocomplete do
 
   def validate_command_syntax(command) do
     command_upper = String.upcase(command)
-    
+
     cond do
       String.starts_with?(command_upper, "CREATE NODE") ->
         validate_create_node_syntax(command)
-        
+
       String.starts_with?(command_upper, "CREATE EDGE") ->
         validate_create_edge_syntax(command)
-        
+
       String.starts_with?(command_upper, "TRAVERSE") ->
         validate_traverse_syntax(command)
-        
+
       String.starts_with?(command_upper, "PATH") ->
         validate_path_syntax(command)
-        
+
       String.starts_with?(command_upper, "JOIN") ->
         validate_join_syntax(command)
-        
+
       true ->
         {:valid, command}
     end

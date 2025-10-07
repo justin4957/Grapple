@@ -1,7 +1,7 @@
 defmodule Grapple.Distributed.Orchestrator do
   @moduledoc """
   Graceful shutdown/startup orchestration for ephemeral clusters.
-  
+
   Handles:
   - Coordinated cluster shutdown with data preservation
   - Intelligent startup sequencing based on data dependencies
@@ -70,17 +70,14 @@ defmodule Grapple.Distributed.Orchestrator do
 
     # Register as orchestration coordinator if we're the first node
     register_as_coordinator()
-    
+
     {:ok, state}
   end
 
   def handle_call({:initiate_shutdown, reason, timeout}, _from, state) do
     {:ok, shutdown_plan} = create_shutdown_plan(reason, timeout, state)
     # Start coordinated shutdown process
-    new_state = %{state |
-      shutdown_plan: shutdown_plan,
-      orchestration_state: :shutting_down
-    }
+    new_state = %{state | shutdown_plan: shutdown_plan, orchestration_state: :shutting_down}
 
     # Execute shutdown phases
     case execute_shutdown_phases(shutdown_plan, new_state) do
@@ -94,10 +91,7 @@ defmodule Grapple.Distributed.Orchestrator do
 
   def handle_call({:coordinate_startup, startup_mode}, _from, state) do
     {:ok, startup_plan} = create_startup_plan(startup_mode, state)
-    new_state = %{state |
-      startup_plan: startup_plan,
-      orchestration_state: :starting_up
-    }
+    new_state = %{state | startup_plan: startup_plan, orchestration_state: :starting_up}
 
     case execute_startup_phases(startup_plan, new_state) do
       {:ok, final_state} ->
@@ -109,7 +103,9 @@ defmodule Grapple.Distributed.Orchestrator do
   end
 
   def handle_call({:emergency_failover, failed_nodes, target_nodes}, _from, state) do
-    {:ok, failover_result, new_state} = execute_emergency_failover(failed_nodes, target_nodes, state)
+    {:ok, failover_result, new_state} =
+      execute_emergency_failover(failed_nodes, target_nodes, state)
+
     {:reply, {:ok, failover_result}, new_state}
   end
 
@@ -121,11 +117,14 @@ defmodule Grapple.Distributed.Orchestrator do
       active_plan: get_active_plan(state),
       coordination_data: state.coordination_data
     }
+
     {:reply, status, state}
   end
 
   def handle_call({:migrate_data, source_node, target_node, data_filter}, _from, state) do
-    {:ok, migration_result, new_state} = execute_data_migration(source_node, target_node, data_filter, state)
+    {:ok, migration_result, new_state} =
+      execute_data_migration(source_node, target_node, data_filter, state)
+
     {:reply, {:ok, migration_result}, new_state}
   end
 
@@ -164,7 +163,7 @@ defmodule Grapple.Distributed.Orchestrator do
 
     # Analyze current data distribution
     data_analysis = analyze_cluster_data()
-    
+
     # Create phase-specific plans
     shutdown_plan = %{
       reason: reason,
@@ -174,7 +173,7 @@ defmodule Grapple.Distributed.Orchestrator do
       phases: create_shutdown_phases(data_analysis, cluster_info),
       rollback_plan: create_shutdown_rollback_plan()
     }
-    
+
     {:ok, shutdown_plan}
   end
 
@@ -188,7 +187,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :prepare_data_preservation
         ]
       },
-      
       drain: %{
         duration: 60,
         actions: [
@@ -197,7 +195,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :consolidate_session_data
         ]
       },
-      
       persist: %{
         duration: 120,
         actions: [
@@ -206,7 +203,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :backup_coordination_metadata
         ]
       },
-      
       coordinate: %{
         duration: 30,
         actions: [
@@ -215,7 +211,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :distribute_restart_tokens
         ]
       },
-      
       shutdown: %{
         duration: 30,
         actions: [
@@ -252,65 +247,65 @@ defmodule Grapple.Distributed.Orchestrator do
   defp execute_shutdown_phase(:prepare, _phase_plan, state) do
     # Pause new operations
     broadcast_operation_pause()
-    
+
     # Notify clients of impending shutdown
     notify_shutdown_initiation()
-    
+
     # Prepare data preservation mechanisms
     prepare_data_preservation()
-    
+
     {:ok, %{state | orchestration_state: :shutdown_prepare}}
   end
 
   defp execute_shutdown_phase(:drain, _phase_plan, state) do
     # Complete pending operations
     wait_for_operation_completion(30_000)
-    
+
     # Drain ephemeral data by promoting to persistent
     drain_ephemeral_data()
-    
+
     # Consolidate session data
     consolidate_session_data()
-    
+
     {:ok, %{state | orchestration_state: :shutdown_drain}}
   end
 
   defp execute_shutdown_phase(:persist, _phase_plan, state) do
     # Save critical cluster state
     save_cluster_state()
-    
+
     # Create data snapshots
     create_data_snapshots()
-    
+
     # Backup coordination metadata
     backup_coordination_metadata()
-    
+
     {:ok, %{state | orchestration_state: :shutdown_persist}}
   end
 
   defp execute_shutdown_phase(:coordinate, _phase_plan, state) do
     # Synchronize final state across cluster
     synchronize_final_cluster_state()
-    
+
     # Elect restart coordinator
     restart_coordinator = elect_restart_coordinator()
-    
+
     # Distribute restart tokens
     distribute_restart_tokens(restart_coordinator)
-    
+
     {:ok, %{state | orchestration_state: :shutdown_coordinate}}
   end
 
   defp execute_shutdown_phase(:shutdown, _phase_plan, state) do
     # Stop user services
     stop_user_services()
-    
+
     # Stop cluster services
     stop_cluster_services()
-    
+
     # Graceful node exit
     perform_graceful_exit()
-    
+
     {:ok, %{state | orchestration_state: :shutdown_complete}}
   end
 
@@ -322,7 +317,7 @@ defmodule Grapple.Distributed.Orchestrator do
       phases: create_startup_phases(startup_mode),
       recovery_data: load_recovery_data()
     }
-    
+
     {:ok, startup_plan}
   end
 
@@ -336,7 +331,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :initialize_storage_tiers
         ]
       },
-      
       discover: %{
         duration: 60,
         actions: [
@@ -345,7 +339,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :exchange_capabilities
         ]
       },
-      
       synchronize: %{
         duration: 120,
         actions: [
@@ -354,7 +347,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :rebuild_indices
         ]
       },
-      
       activate: %{
         duration: 30,
         actions: [
@@ -363,7 +355,6 @@ defmodule Grapple.Distributed.Orchestrator do
           :enable_load_balancing
         ]
       },
-      
       ready: %{
         duration: 15,
         actions: [
@@ -390,117 +381,118 @@ defmodule Grapple.Distributed.Orchestrator do
   defp execute_startup_phase(:initialize, _phase_plan, state) do
     # Start core services
     start_core_services()
-    
+
     # Load local state
     load_local_state()
-    
+
     # Initialize storage tiers
     initialize_storage_tiers()
-    
+
     {:ok, %{state | orchestration_state: :startup_initialize}}
   end
 
   defp execute_startup_phase(:discover, _phase_plan, state) do
     # Discover peer nodes
     peers = discover_peer_nodes()
-    
+
     # Establish connections
     establish_peer_connections(peers)
-    
+
     # Exchange capabilities
     exchange_node_capabilities(peers)
-    
+
     {:ok, %{state | orchestration_state: :startup_discover}}
   end
 
   defp execute_startup_phase(:synchronize, _phase_plan, state) do
     # Synchronize cluster state
     synchronize_cluster_state()
-    
+
     # Restore data partitions
     restore_data_partitions()
-    
+
     # Rebuild indices
     rebuild_search_indices()
-    
+
     {:ok, %{state | orchestration_state: :startup_synchronize}}
   end
 
   defp execute_startup_phase(:activate, _phase_plan, state) do
     # Activate replication
     activate_replication_services()
-    
+
     # Start health monitoring
     start_health_monitoring()
-    
+
     # Enable load balancing
     enable_load_balancing()
-    
+
     {:ok, %{state | orchestration_state: :startup_activate}}
   end
 
   defp execute_startup_phase(:ready, _phase_plan, state) do
     # Resume user operations
     resume_user_operations()
-    
+
     # Notify cluster ready
     notify_cluster_ready()
-    
+
     # Start optimization services
     start_optimization_services()
-    
+
     {:ok, %{state | orchestration_state: :active}}
   end
 
   defp execute_emergency_failover(failed_nodes, target_nodes, state) do
     IO.puts("🚨 Executing emergency failover for nodes: #{inspect(failed_nodes)}")
-    
+
     # Quick assessment of data at risk
     at_risk_data = assess_data_at_risk(failed_nodes)
-    
+
     # Rapid migration to target nodes
-    migration_results = Enum.map(at_risk_data, fn {data_key, source_node} ->
-      target_node = select_failover_target(target_nodes, data_key)
-      migrate_data_emergency(data_key, source_node, target_node)
-    end)
-    
+    migration_results =
+      Enum.map(at_risk_data, fn {data_key, source_node} ->
+        target_node = select_failover_target(target_nodes, data_key)
+        migrate_data_emergency(data_key, source_node, target_node)
+      end)
+
     # Update cluster topology
     update_cluster_topology_for_failover(failed_nodes, target_nodes)
-    
+
     failover_result = %{
       failed_nodes: failed_nodes,
       target_nodes: target_nodes,
       migrations_completed: length(Enum.filter(migration_results, &match?({:ok, _}, &1))),
       migrations_failed: length(Enum.filter(migration_results, &match?({:error, _}, &1)))
     }
-    
+
     new_state = %{state | orchestration_state: :failover_recovery}
-    
+
     {:ok, failover_result, new_state}
   end
 
   defp execute_data_migration(source_node, target_node, data_filter, state) do
     IO.puts("📦 Migrating data from #{source_node} to #{target_node}")
-    
+
     # Get data to migrate based on filter
     data_to_migrate = get_migration_data(source_node, data_filter)
-    
+
     # Execute migration in chunks
     migration_result = migrate_data_chunks(data_to_migrate, source_node, target_node)
-    
+
     # Update data placement records
     update_placement_records(migration_result, target_node)
-    
+
     # Verify migration completion
     verification_result = verify_migration_completion(migration_result, target_node)
-    
+
     result = %{
       source_node: source_node,
       target_node: target_node,
       data_migrated: length(data_to_migrate),
       success: verification_result
     }
-    
+
     {:ok, result, state}
   end
 
@@ -517,7 +509,7 @@ defmodule Grapple.Distributed.Orchestrator do
 
   defp broadcast_operation_pause do
     cluster_nodes = ClusterManager.get_cluster_info().nodes
-    
+
     Enum.each(cluster_nodes, fn node ->
       try do
         GenServer.cast({__MODULE__, node}, :pause_operations)
@@ -529,7 +521,7 @@ defmodule Grapple.Distributed.Orchestrator do
 
   defp broadcast_operation_resume do
     cluster_nodes = ClusterManager.get_cluster_info().nodes
-    
+
     Enum.each(cluster_nodes, fn node ->
       try do
         GenServer.cast({__MODULE__, node}, :resume_operations)
@@ -551,7 +543,8 @@ defmodule Grapple.Distributed.Orchestrator do
 
   defp wait_for_operation_completion(_timeout) do
     # Wait for pending operations to complete
-    :timer.sleep(1000)  # Simplified - should check actual operations
+    # Simplified - should check actual operations
+    :timer.sleep(1000)
   end
 
   defp drain_ephemeral_data do
@@ -568,12 +561,13 @@ defmodule Grapple.Distributed.Orchestrator do
   defp save_cluster_state do
     # Save critical cluster coordination state
     cluster_info = ClusterManager.get_cluster_info()
+
     state_data = %{
       nodes: cluster_info.nodes,
       partitions: cluster_info.partition_count,
       timestamp: System.system_time(:second)
     }
-    
+
     # Store in persistent location
     File.write("/tmp/grapple_cluster_state.json", Jason.encode!(state_data))
   end
@@ -596,7 +590,8 @@ defmodule Grapple.Distributed.Orchestrator do
   defp elect_restart_coordinator do
     # Elect coordinator for restart process
     cluster_nodes = ClusterManager.get_cluster_info().nodes
-    Enum.min(cluster_nodes)  # Simple election - lowest node name
+    # Simple election - lowest node name
+    Enum.min(cluster_nodes)
   end
 
   defp distribute_restart_tokens(coordinator) do
@@ -628,7 +623,9 @@ defmodule Grapple.Distributed.Orchestrator do
           {:ok, data} -> data
           _ -> %{}
         end
-      _ -> %{}
+
+      _ ->
+        %{}
     end
   end
 
@@ -736,7 +733,8 @@ defmodule Grapple.Distributed.Orchestrator do
 
   defp get_migration_data(_source_node, _data_filter) do
     # Get data to migrate based on filter
-    []  # Placeholder
+    # Placeholder
+    []
   end
 
   defp migrate_data_chunks(data_to_migrate, _source_node, _target_node) do
@@ -756,7 +754,8 @@ defmodule Grapple.Distributed.Orchestrator do
 
   defp get_total_data_size do
     # Get total data size across cluster
-    0  # Placeholder
+    # Placeholder
+    0
   end
 
   defp identify_critical_data do

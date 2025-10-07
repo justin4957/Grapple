@@ -30,36 +30,42 @@ defmodule Grapple.Integration.GraphWorkflowTest do
   describe "complete graph workflow" do
     test "end-to-end social network scenario" do
       # 1. Create users
-      {:ok, alice_id} = Grapple.create_node(%{
-        name: "Alice",
-        role: "Engineer",
-        department: "Backend",
-        email: "alice@example.com"
-      })
+      {:ok, alice_id} =
+        Grapple.create_node(%{
+          name: "Alice",
+          role: "Engineer",
+          department: "Backend",
+          email: "alice@example.com"
+        })
 
-      {:ok, bob_id} = Grapple.create_node(%{
-        name: "Bob",
-        role: "Engineer",
-        department: "Frontend",
-        email: "bob@example.com"
-      })
+      {:ok, bob_id} =
+        Grapple.create_node(%{
+          name: "Bob",
+          role: "Engineer",
+          department: "Frontend",
+          email: "bob@example.com"
+        })
 
-      {:ok, carol_id} = Grapple.create_node(%{
-        name: "Carol",
-        role: "Manager",
-        department: "Engineering",
-        email: "carol@example.com"
-      })
+      {:ok, carol_id} =
+        Grapple.create_node(%{
+          name: "Carol",
+          role: "Manager",
+          department: "Engineering",
+          email: "carol@example.com"
+        })
 
-      {:ok, dave_id} = Grapple.create_node(%{
-        name: "Dave",
-        role: "Designer",
-        department: "Product",
-        email: "dave@example.com"
-      })
+      {:ok, dave_id} =
+        Grapple.create_node(%{
+          name: "Dave",
+          role: "Designer",
+          department: "Product",
+          email: "dave@example.com"
+        })
 
       # 2. Create relationships
-      {:ok, _} = Grapple.create_edge(alice_id, bob_id, "knows", %{since: "2020", strength: "strong"})
+      {:ok, _} =
+        Grapple.create_edge(alice_id, bob_id, "knows", %{since: "2020", strength: "strong"})
+
       {:ok, _} = Grapple.create_edge(bob_id, carol_id, "reports_to", %{since: "2021"})
       {:ok, _} = Grapple.create_edge(alice_id, carol_id, "reports_to", %{since: "2019"})
       {:ok, _} = Grapple.create_edge(alice_id, dave_id, "collaborates_with", %{projects: 5})
@@ -127,51 +133,58 @@ defmodule Grapple.Integration.GraphWorkflowTest do
 
     test "complete project management workflow" do
       # Create project nodes
-      {:ok, project1} = Grapple.create_node(%{
-        type: "project",
-        name: "Project Alpha",
-        status: "active",
-        priority: "high"
-      })
+      {:ok, project1} =
+        Grapple.create_node(%{
+          type: "project",
+          name: "Project Alpha",
+          status: "active",
+          priority: "high"
+        })
 
-      {:ok, project2} = Grapple.create_node(%{
-        type: "project",
-        name: "Project Beta",
-        status: "planning",
-        priority: "medium"
-      })
+      {:ok, project2} =
+        Grapple.create_node(%{
+          type: "project",
+          name: "Project Beta",
+          status: "planning",
+          priority: "medium"
+        })
 
       # Create task nodes
-      {:ok, task1} = Grapple.create_node(%{
-        type: "task",
-        title: "Design database schema",
-        status: "done"
-      })
+      {:ok, task1} =
+        Grapple.create_node(%{
+          type: "task",
+          title: "Design database schema",
+          status: "done"
+        })
 
-      {:ok, task2} = Grapple.create_node(%{
-        type: "task",
-        title: "Implement API endpoints",
-        status: "in_progress"
-      })
+      {:ok, task2} =
+        Grapple.create_node(%{
+          type: "task",
+          title: "Implement API endpoints",
+          status: "in_progress"
+        })
 
-      {:ok, task3} = Grapple.create_node(%{
-        type: "task",
-        title: "Write tests",
-        status: "todo"
-      })
+      {:ok, task3} =
+        Grapple.create_node(%{
+          type: "task",
+          title: "Write tests",
+          status: "todo"
+        })
 
       # Create person nodes
-      {:ok, person1} = Grapple.create_node(%{
-        type: "person",
-        name: "John",
-        role: "Developer"
-      })
+      {:ok, person1} =
+        Grapple.create_node(%{
+          type: "person",
+          name: "John",
+          role: "Developer"
+        })
 
-      {:ok, person2} = Grapple.create_node(%{
-        type: "person",
-        name: "Jane",
-        role: "QA Engineer"
-      })
+      {:ok, person2} =
+        Grapple.create_node(%{
+          type: "person",
+          name: "Jane",
+          role: "QA Engineer"
+        })
 
       # Create relationships
       {:ok, _} = Grapple.create_edge(project1, task1, "contains")
@@ -214,35 +227,40 @@ defmodule Grapple.Integration.GraphWorkflowTest do
 
     test "knowledge graph workflow" do
       # Create concept nodes
-      {:ok, elixir} = Grapple.create_node(%{
-        type: "language",
-        name: "Elixir",
-        paradigm: "functional"
-      })
+      {:ok, elixir} =
+        Grapple.create_node(%{
+          type: "language",
+          name: "Elixir",
+          paradigm: "functional"
+        })
 
-      {:ok, erlang} = Grapple.create_node(%{
-        type: "language",
-        name: "Erlang",
-        paradigm: "functional"
-      })
+      {:ok, erlang} =
+        Grapple.create_node(%{
+          type: "language",
+          name: "Erlang",
+          paradigm: "functional"
+        })
 
-      {:ok, beam} = Grapple.create_node(%{
-        type: "vm",
-        name: "BEAM",
-        description: "Erlang Virtual Machine"
-      })
+      {:ok, beam} =
+        Grapple.create_node(%{
+          type: "vm",
+          name: "BEAM",
+          description: "Erlang Virtual Machine"
+        })
 
-      {:ok, otp} = Grapple.create_node(%{
-        type: "framework",
-        name: "OTP",
-        description: "Open Telecom Platform"
-      })
+      {:ok, otp} =
+        Grapple.create_node(%{
+          type: "framework",
+          name: "OTP",
+          description: "Open Telecom Platform"
+        })
 
-      {:ok, phoenix} = Grapple.create_node(%{
-        type: "framework",
-        name: "Phoenix",
-        description: "Web framework for Elixir"
-      })
+      {:ok, phoenix} =
+        Grapple.create_node(%{
+          type: "framework",
+          name: "Phoenix",
+          description: "Web framework for Elixir"
+        })
 
       # Create relationships
       {:ok, _} = Grapple.create_edge(elixir, beam, "runs_on")
@@ -289,12 +307,13 @@ defmodule Grapple.Integration.GraphWorkflowTest do
       # Create 1000 nodes
       node_ids =
         Enum.map(1..1000, fn i ->
-          {:ok, id} = Grapple.create_node(%{
-            id: i,
-            name: "Node#{i}",
-            category: "bulk_test",
-            value: i * 100
-          })
+          {:ok, id} =
+            Grapple.create_node(%{
+              id: i,
+              name: "Node#{i}",
+              category: "bulk_test",
+              value: i * 100
+            })
 
           id
         end)

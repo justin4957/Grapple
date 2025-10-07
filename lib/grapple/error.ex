@@ -104,6 +104,7 @@ defmodule Grapple.Error do
   """
   def recovery_suggestions({:error, :node_not_found, _message, opts}) do
     node_id = Keyword.get(opts, :node_id)
+
     [
       "Verify the node ID #{node_id} exists using: SHOW GRAPH",
       "List all nodes to find the correct ID: FIND NODES <property> <value>",
@@ -113,6 +114,7 @@ defmodule Grapple.Error do
 
   def recovery_suggestions({:error, :connection_failed, _message, opts}) do
     target = Keyword.get(opts, :target_node)
+
     [
       "Check if node #{target} is running and reachable",
       "Verify network connectivity and firewall rules",

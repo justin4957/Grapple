@@ -1,7 +1,7 @@
 defmodule Grapple.Distributed.PlacementEngine do
   @moduledoc """
   Ephemeral-first data placement engine for distributed graph storage.
-  
+
   Handles intelligent placement of nodes/edges across the cluster based on:
   - Access patterns and locality
   - Computational requirements
@@ -62,24 +62,24 @@ defmodule Grapple.Distributed.PlacementEngine do
 
     # Start periodic optimization
     schedule_optimization()
-    
+
     {:ok, state}
   end
 
   def handle_call({:place_data, key, data, classification, _opts}, _from, state) do
     # Get placement strategy from lifecycle manager
     {:ok, placement_strategy} = LifecycleManager.classify_data(key, classification)
-    
+
     # Determine optimal storage tier and location
     storage_plan = create_storage_plan(key, data, placement_strategy, state)
-    
+
     # Execute placement
     case execute_placement(storage_plan) do
       {:ok, locations} ->
         # Update access patterns
         new_state = update_access_patterns(key, locations, state)
         {:reply, {:ok, locations}, new_state}
-      
+
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
@@ -112,6 +112,7 @@ defmodule Grapple.Distributed.PlacementEngine do
       memory_efficiency: calculate_memory_efficiency(state),
       access_patterns: get_access_pattern_summary(state)
     }
+
     {:reply, stats, state}
   end
 
@@ -170,16 +171,19 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp initialize_resource_monitor do
     %{
-      memory_threshold: 0.8,  # 80% memory usage triggers optimization
-      cpu_threshold: 0.7,     # 70% CPU usage
-      network_latency: %{},   # Node-to-node latency measurements
+      # 80% memory usage triggers optimization
+      memory_threshold: 0.8,
+      # 70% CPU usage
+      cpu_threshold: 0.7,
+      # Node-to-node latency measurements
+      network_latency: %{},
       last_updated: System.system_time(:second)
     }
   end
 
   defp create_storage_plan(key, data, placement_strategy, state) do
     strategy = get_strategy_for_classification(placement_strategy, state)
-    
+
     %{
       key: key,
       data: data,
@@ -201,13 +205,13 @@ defmodule Grapple.Distributed.PlacementEngine do
     case storage_plan.storage_tier do
       :ets_only ->
         execute_ets_placement(storage_plan)
-      
+
       :ets_primary_mnesia_backup ->
         execute_hybrid_placement(storage_plan, :ets, :mnesia)
-      
+
       :mnesia_primary_dets_backup ->
         execute_hybrid_placement(storage_plan, :mnesia, :dets)
-      
+
       _ ->
         {:error, :unsupported_storage_tier}
     end
@@ -219,12 +223,18 @@ defmodule Grapple.Distributed.PlacementEngine do
       case store_in_ets(storage_plan.key, storage_plan.data) do
         :ok ->
           locations = [%{node: node(), tier: :ets, role: :primary}]
-          
+
           # Replicate to other nodes if needed
-          replica_locations = replicate_to_nodes(storage_plan.replica_nodes, storage_plan.key, storage_plan.data, :ets)
-          
+          replica_locations =
+            replicate_to_nodes(
+              storage_plan.replica_nodes,
+              storage_plan.key,
+              storage_plan.data,
+              :ets
+            )
+
           {:ok, locations ++ replica_locations}
-        
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -239,19 +249,25 @@ defmodule Grapple.Distributed.PlacementEngine do
     case store_in_tier(storage_plan.key, storage_plan.data, primary_tier) do
       :ok ->
         locations = [%{node: node(), tier: primary_tier, role: :primary}]
-        
+
         # Async backup to secondary tier
         Task.start(fn ->
           store_in_tier(storage_plan.key, storage_plan.data, backup_tier)
         end)
-        
+
         backup_locations = [%{node: node(), tier: backup_tier, role: :backup}]
-        
+
         # Replicate to other nodes
-        replica_locations = replicate_to_nodes(storage_plan.replica_nodes, storage_plan.key, storage_plan.data, primary_tier)
-        
+        replica_locations =
+          replicate_to_nodes(
+            storage_plan.replica_nodes,
+            storage_plan.key,
+            storage_plan.data,
+            primary_tier
+          )
+
         {:ok, locations ++ backup_locations ++ replica_locations}
-      
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -320,7 +336,11 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp forward_to_primary(storage_plan) do
     try do
-      GenServer.call({__MODULE__, storage_plan.primary_node}, {:execute_placement, storage_plan}, 10000)
+      GenServer.call(
+        {__MODULE__, storage_plan.primary_node},
+        {:execute_placement, storage_plan},
+        10000
+      )
     catch
       :exit, _ -> {:error, :primary_unreachable}
     end
@@ -337,10 +357,12 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp execute_relocation(relocation_plan) do
     # Execute migration steps sequentially
-    results = Enum.map(relocation_plan.migration_steps, fn step ->
-      {:ok, result} = execute_migration_step(step)
-      result
-    end)
+    results =
+      Enum.map(relocation_plan.migration_steps, fn step ->
+        {:ok, result} = execute_migration_step(step)
+        result
+      end)
+
     {:ok, results}
   end
 
@@ -371,27 +393,29 @@ defmodule Grapple.Distributed.PlacementEngine do
   defp get_current_locations(key) do
     # Query all storage tiers for the key
     locations = []
-    
+
     # Check ETS
-    locations = case EtsGraphStore.get_node(key) do
-      {:ok, _} -> [%{node: node(), tier: :ets, role: :primary} | locations]
-      {:error, :not_found} -> locations
-    end
-    
+    locations =
+      case EtsGraphStore.get_node(key) do
+        {:ok, _} -> [%{node: node(), tier: :ets, role: :primary} | locations]
+        {:error, :not_found} -> locations
+      end
+
     {:ok, locations}
   end
 
   defp update_access_patterns(key, locations, state) do
     timestamp = System.system_time(:second)
+
     access_info = %{
       locations: locations,
       last_access: timestamp,
       access_count: get_access_count(key, state) + 1
     }
-    
+
     new_patterns = Map.put(state.access_patterns, key, access_info)
     new_cache = Map.put(state.locality_cache, key, locations)
-    
+
     %{state | access_patterns: new_patterns, locality_cache: new_cache}
   end
 
@@ -406,20 +430,20 @@ defmodule Grapple.Distributed.PlacementEngine do
     # Identify optimization opportunities
     hot_data = identify_hot_data(state)
     cold_data = identify_cold_data(state)
-    
+
     # Optimize hot data placement
     state = optimize_hot_data_placement(hot_data, state)
-    
+
     # Move cold data to cheaper storage
     state = optimize_cold_data_placement(cold_data, state)
-    
+
     state
   end
 
   defp perform_periodic_optimization(state) do
     # Update resource monitoring
     updated_state = update_resource_monitor(state)
-    
+
     # Light optimization pass
     perform_optimization(updated_state)
   end
@@ -429,11 +453,11 @@ defmodule Grapple.Distributed.PlacementEngine do
       :low ->
         # Gentle cleanup
         evict_least_accessed_data(state, 0.1)
-      
+
       :medium ->
         # More aggressive cleanup
         evict_least_accessed_data(state, 0.25)
-      
+
       :high ->
         # Emergency cleanup
         evict_least_accessed_data(state, 0.5)
@@ -441,8 +465,9 @@ defmodule Grapple.Distributed.PlacementEngine do
   end
 
   defp identify_hot_data(state) do
-    threshold = System.system_time(:second) - 300  # Last 5 minutes
-    
+    # Last 5 minutes
+    threshold = System.system_time(:second) - 300
+
     state.access_patterns
     |> Enum.filter(fn {_key, access_info} ->
       access_info.last_access > threshold and access_info.access_count > 5
@@ -451,8 +476,9 @@ defmodule Grapple.Distributed.PlacementEngine do
   end
 
   defp identify_cold_data(state) do
-    threshold = System.system_time(:second) - 3600  # Last hour
-    
+    # Last hour
+    threshold = System.system_time(:second) - 3600
+
     state.access_patterns
     |> Enum.filter(fn {_key, access_info} ->
       access_info.last_access < threshold
@@ -465,7 +491,7 @@ defmodule Grapple.Distributed.PlacementEngine do
     Enum.each(hot_keys, fn key ->
       relocate_data(key, :computational)
     end)
-    
+
     state
   end
 
@@ -474,34 +500,37 @@ defmodule Grapple.Distributed.PlacementEngine do
     Enum.each(cold_keys, fn key ->
       relocate_data(key, :persistent)
     end)
-    
+
     state
   end
 
   defp evict_least_accessed_data(state, percentage) do
     total_items = map_size(state.access_patterns)
     items_to_evict = round(total_items * percentage)
-    
-    candidates = state.access_patterns
-    |> Enum.sort_by(fn {_key, access_info} -> access_info.last_access end)
-    |> Enum.take(items_to_evict)
-    |> Enum.map(fn {key, _access_info} -> key end)
-    
+
+    candidates =
+      state.access_patterns
+      |> Enum.sort_by(fn {_key, access_info} -> access_info.last_access end)
+      |> Enum.take(items_to_evict)
+      |> Enum.map(fn {key, _access_info} -> key end)
+
     # Remove from access patterns and cache
-    new_patterns = Enum.reduce(candidates, state.access_patterns, fn key, acc ->
-      Map.delete(acc, key)
-    end)
-    
-    new_cache = Enum.reduce(candidates, state.locality_cache, fn key, acc ->
-      Map.delete(acc, key)
-    end)
-    
+    new_patterns =
+      Enum.reduce(candidates, state.access_patterns, fn key, acc ->
+        Map.delete(acc, key)
+      end)
+
+    new_cache =
+      Enum.reduce(candidates, state.locality_cache, fn key, acc ->
+        Map.delete(acc, key)
+      end)
+
     %{state | access_patterns: new_patterns, locality_cache: new_cache}
   end
 
   defp count_local_placements(state) do
     local_node = state.local_node
-    
+
     state.locality_cache
     |> Enum.count(fn {_key, locations} ->
       Enum.any?(locations, fn location -> location.node == local_node end)
@@ -510,7 +539,7 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp count_remote_placements(state) do
     local_node = state.local_node
-    
+
     state.locality_cache
     |> Enum.count(fn {_key, locations} ->
       Enum.all?(locations, fn location -> location.node != local_node end)
@@ -518,10 +547,11 @@ defmodule Grapple.Distributed.PlacementEngine do
   end
 
   defp calculate_cache_hit_ratio(state) do
-    total_accesses = state.access_patterns
-    |> Enum.map(fn {_key, access_info} -> access_info.access_count end)
-    |> Enum.sum()
-    
+    total_accesses =
+      state.access_patterns
+      |> Enum.map(fn {_key, access_info} -> access_info.access_count end)
+      |> Enum.sum()
+
     if total_accesses > 0 do
       local_accesses = count_local_placements(state)
       local_accesses / total_accesses
@@ -549,10 +579,11 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp calculate_average_access_count(state) do
     if map_size(state.access_patterns) > 0 do
-      total_accesses = state.access_patterns
-      |> Enum.map(fn {_key, access_info} -> access_info.access_count end)
-      |> Enum.sum()
-      
+      total_accesses =
+        state.access_patterns
+        |> Enum.map(fn {_key, access_info} -> access_info.access_count end)
+        |> Enum.sum()
+
       total_accesses / map_size(state.access_patterns)
     else
       0.0
@@ -561,15 +592,14 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp update_resource_monitor(state) do
     current_time = System.system_time(:second)
-    
-    new_monitor = %{state.resource_monitor | 
-      last_updated: current_time
-    }
-    
+
+    new_monitor = %{state.resource_monitor | last_updated: current_time}
+
     %{state | resource_monitor: new_monitor}
   end
 
   defp schedule_optimization do
-    Process.send_after(self(), :periodic_optimization, 60_000)  # Every minute
+    # Every minute
+    Process.send_after(self(), :periodic_optimization, 60_000)
   end
 end
