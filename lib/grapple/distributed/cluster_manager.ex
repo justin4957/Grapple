@@ -1,11 +1,14 @@
 defmodule Grapple.Distributed.ClusterManager do
   @moduledoc """
   Minimal cluster management - designed for unfurling.
-  Handles basic node joining, leaving, and coordination.
+  Handles basic node joining, leaving, and coordination with comprehensive error handling.
   """
 
   use GenServer
   alias Grapple.Distributed.Schema
+  alias Grapple.Error
+
+  require Logger
 
   defstruct [:local_node, :cluster_state, :partition_count]
 
@@ -128,17 +131,40 @@ defmodule Grapple.Distributed.ClusterManager do
   end
 
   defp attempt_cluster_join(target_node) do
+    Logger.info("Attempting to join cluster at node: #{target_node}")
+
     case Node.connect(target_node) do
       true ->
+        Logger.info("Successfully connected to #{target_node}")
+
         # Copy schema from target node
         case :mnesia.change_config(:extra_db_nodes, [target_node]) do
-          {:ok, _} -> :ok
-          {:error, reason} -> {:error, reason}
+          {:ok, nodes} ->
+            Logger.info("Joined cluster with nodes: #{inspect(nodes)}")
+            :ok
+
+          {:error, reason} ->
+            Logger.error("Failed to sync mnesia schema: #{inspect(reason)}")
+            {:error, {:schema_sync_failed, reason}}
         end
-      
+
+      :ignored ->
+        # Node is already connected
+        Logger.info("Node #{target_node} is already connected")
+
+        case :mnesia.change_config(:extra_db_nodes, [target_node]) do
+          {:ok, _} -> :ok
+          {:error, reason} -> {:error, {:schema_sync_failed, reason}}
+        end
+
       false ->
+        Logger.error("Failed to connect to node #{target_node}")
         {:error, :connection_failed}
     end
+  rescue
+    error ->
+      Logger.error("Exception during cluster join: #{inspect(error)}")
+      {:error, {:exception, error}}
   end
 
   defp refresh_cluster_state(state) do

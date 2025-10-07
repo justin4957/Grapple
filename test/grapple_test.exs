@@ -90,9 +90,9 @@ defmodule GrappleTest do
 
     test "create_edge/4 returns error for non-existent nodes" do
       {:ok, node1} = Grapple.create_node(%{name: "Alice"})
-      
-      assert {:error, :node_not_found} = Grapple.create_edge(node1, 99999, "friends")
-      assert {:error, :node_not_found} = Grapple.create_edge(99999, node1, "friends")
+
+      assert {:error, :node_not_found, _message, _opts} = Grapple.create_edge(node1, 99999, "friends")
+      assert {:error, :node_not_found, _message, _opts} = Grapple.create_edge(99999, node1, "friends")
     end
 
     test "find_edges_by_label/1 finds edges with matching label" do

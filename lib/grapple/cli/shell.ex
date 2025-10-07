@@ -1,7 +1,7 @@
 defmodule Grapple.CLI.Shell do
   @moduledoc """
   Interactive CLI shell for graph database operations.
-  Provides REPL interface for queries and cluster management.
+  Provides REPL interface for queries and cluster management with comprehensive error handling.
   """
 
   alias Grapple.Query.Executor
@@ -10,6 +10,7 @@ defmodule Grapple.CLI.Shell do
   alias Grapple.CLI.Autocomplete
   alias Grapple.Visualization.AsciiRenderer
   alias Grapple.Distributed.{LifecycleManager, ReplicationEngine, Orchestrator, PersistenceManager}
+  alias Grapple.Error
 
   def start do
     IO.puts("Grapple Graph Database Shell")
@@ -130,14 +131,17 @@ defmodule Grapple.CLI.Shell do
       {:ok, properties} ->
         case EtsGraphStore.create_node(properties) do
           {:ok, node_id} ->
-            IO.puts("Created node with ID: #{node_id}")
-          
+            IO.puts("✅ Created node with ID: #{node_id}")
+
+          {:error, _reason, _message, _opts} = error ->
+            display_error(error)
+
           {:error, reason} ->
-            IO.puts("Error creating node: #{reason}")
+            IO.puts("❌ Error creating node: #{reason}")
         end
-      
+
       {:error, reason} ->
-        IO.puts("Error parsing properties: #{reason}")
+        IO.puts("❌ Error parsing properties: #{reason}")
     end
   end
 
@@ -652,12 +656,12 @@ defmodule Grapple.CLI.Shell do
     try do
       # Remove braces and parse as keyword list
       cleaned = props_str |> String.trim() |> String.trim_leading("{") |> String.trim_trailing("}")
-      
+
       if cleaned == "" do
         {:ok, %{}}
       else
         # Basic parsing - expand for more complex property types
-        properties = 
+        properties =
           cleaned
           |> String.split(",", trim: true)
           |> Enum.map(fn pair ->
@@ -667,11 +671,29 @@ defmodule Grapple.CLI.Shell do
             {key, value}
           end)
           |> Enum.into(%{})
-        
+
         {:ok, properties}
       end
     rescue
       _ -> {:error, "Invalid property format"}
     end
+  end
+
+  defp display_error({:error, reason, message, opts}) do
+    IO.puts("❌ #{Error.format_error({:error, reason, message, opts})}")
+
+    suggestions = Error.recovery_suggestions({:error, reason, message, opts})
+
+    if length(suggestions) > 0 do
+      IO.puts("\n💡 Suggestions:")
+
+      Enum.each(suggestions, fn suggestion ->
+        IO.puts("   • #{suggestion}")
+      end)
+    end
+  end
+
+  defp display_error(error) do
+    IO.puts("❌ Error: #{inspect(error)}")
   end
 end

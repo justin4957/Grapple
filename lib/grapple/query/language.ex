@@ -1,7 +1,7 @@
 defmodule Grapple.Query.Language do
   @moduledoc """
   Query language specification and parser for Grapple Graph Database.
-  
+
   Supports basic graph query operations:
   - MATCH: Pattern matching for nodes and relationships
   - CREATE: Creating nodes and relationships
@@ -9,13 +9,17 @@ defmodule Grapple.Query.Language do
   - WHERE: Filtering conditions
   """
 
+  alias Grapple.{Validation, Error}
+
   defstruct [:type, :clauses, :return, :where]
 
   def parse(query_string) do
-    query_string
-    |> String.trim()
-    |> tokenize()
-    |> parse_tokens()
+    with {:ok, validated_query} <- Validation.validate_query_syntax(query_string) do
+      validated_query
+      |> String.trim()
+      |> tokenize()
+      |> parse_tokens()
+    end
   end
 
   defp tokenize(query) do
@@ -46,8 +50,15 @@ defmodule Grapple.Query.Language do
     }}
   end
 
-  defp parse_tokens(_tokens) do
-    {:error, :unsupported_query}
+  defp parse_tokens([]) do
+    Error.invalid_query_syntax("Empty query provided")
+  end
+
+  defp parse_tokens(tokens) do
+    Error.invalid_query_syntax(
+      "Unsupported query command: #{List.first(tokens)}",
+      query: Enum.join(tokens, " ")
+    )
   end
 
   defp extract_pattern(tokens) do
