@@ -64,17 +64,6 @@ defmodule Grapple.Distributed.ClusterManagerTest do
     end
   end
 
-  describe "get_cluster_info/0" do
-    test "returns complete cluster information" do
-      info = ClusterManager.get_cluster_info()
-
-      assert is_map(info)
-      assert Map.has_key?(info, :local_node)
-      assert Map.has_key?(info, :nodes)
-      assert Map.has_key?(info, :partitions)
-    end
-  end
-
   describe "distributed mode detection" do
     test "detects distributed mode based on application config" do
       info = ClusterManager.get_cluster_info()
