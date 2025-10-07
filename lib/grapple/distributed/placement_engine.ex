@@ -115,6 +115,17 @@ defmodule Grapple.Distributed.PlacementEngine do
     {:reply, stats, state}
   end
 
+  # Handle remote calls
+  def handle_call({:store_replica, key, data, tier}, _from, state) do
+    result = store_in_tier(key, data, tier)
+    {:reply, result, state}
+  end
+
+  def handle_call({:execute_placement, storage_plan}, _from, state) do
+    result = execute_placement(storage_plan)
+    {:reply, result, state}
+  end
+
   def handle_cast(:optimize_placement, state) do
     new_state = perform_optimization(state)
     {:noreply, new_state}
@@ -560,16 +571,5 @@ defmodule Grapple.Distributed.PlacementEngine do
 
   defp schedule_optimization do
     Process.send_after(self(), :periodic_optimization, 60_000)  # Every minute
-  end
-
-  # Handle remote calls
-  def handle_call({:store_replica, key, data, tier}, _from, state) do
-    result = store_in_tier(key, data, tier)
-    {:reply, result, state}
-  end
-
-  def handle_call({:execute_placement, storage_plan}, _from, state) do
-    result = execute_placement(storage_plan)
-    {:reply, result, state}
   end
 end

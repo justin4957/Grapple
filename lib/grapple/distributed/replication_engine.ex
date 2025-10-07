@@ -141,6 +141,42 @@ defmodule Grapple.Distributed.ReplicationEngine do
     {:reply, stats, state}
   end
 
+  # Handle remote replication calls
+  def handle_call({:store_replica, key, data, strategy}, _from, state) do
+    # Store as replica on this node
+    replica = %{
+      node: node(),
+      data: data,
+      version: 1,
+      vector_clock: %{node() => 1},
+      last_updated: System.system_time(:second),
+      status: :replica,
+      conflicts: []
+    }
+
+    # Create or update replica set
+    replica_set = case Map.get(state.replica_sets, key) do
+      nil ->
+        %{
+          primary: node(),
+          replicas: [replica],
+          strategy: strategy,
+          last_sync: System.system_time(:second)
+        }
+
+      existing ->
+        %{existing |
+          replicas: [replica | existing.replicas],
+          last_sync: System.system_time(:second)
+        }
+    end
+
+    new_replica_sets = Map.put(state.replica_sets, key, replica_set)
+    new_state = %{state | replica_sets: new_replica_sets}
+
+    {:reply, :ok, new_state}
+  end
+
   def handle_cast({:handle_node_failure, failed_node}, state) do
     new_state = handle_node_failure_internal(failed_node, state)
     {:noreply, new_state}
@@ -808,43 +844,5 @@ defmodule Grapple.Distributed.ReplicationEngine do
 
   defp schedule_consistency_check do
     Process.send_after(self(), :consistency_check, 30_000)  # Every 30 seconds
-  end
-
-  # Handle remote replication calls
-  def handle_call({:store_replica, key, data, strategy}, _from, state) do
-    # Store as replica on this node
-    replica = %{
-      node: node(),
-      data: data,
-      version: 1,
-      vector_clock: %{node() => 1},
-      last_updated: System.system_time(:second),
-      status: :replica,
-      conflicts: []
-    }
-    
-    # Create or update replica set
-    replica_set = case Map.get(state.replica_sets, key) do
-      nil ->
-        %{
-          key: key,
-          strategy: strategy,
-          replicas: [replica],
-          primary_node: nil,  # Remote primary
-          created_at: System.system_time(:second),
-          last_sync: System.system_time(:second)
-        }
-      
-      existing ->
-        %{existing | 
-          replicas: [replica | existing.replicas],
-          last_sync: System.system_time(:second)
-        }
-    end
-    
-    new_replica_sets = Map.put(state.replica_sets, key, replica_set)
-    new_state = %{state | replica_sets: new_replica_sets}
-    
-    {:reply, :ok, new_state}
   end
 end

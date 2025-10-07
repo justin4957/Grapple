@@ -619,20 +619,19 @@ defmodule Grapple.Distributed.PersistenceManager do
 
   defp get_current_storage_tier(data_key) do
     # Determine which tier currently stores the data
-    cond do
-      data_exists_in_ets?(data_key) -> :ets
-      data_exists_in_mnesia?(data_key) -> :mnesia
-      data_exists_in_dets?(data_key) -> :dets
-      true -> :unknown
+    # Note: Only ETS tier is currently implemented
+    if data_exists_in_ets?(data_key) do
+      :ets
+    else
+      :unknown
     end
   end
 
   defp get_data_from_current_tier(data_key) do
     # Retrieve data from its current storage tier
+    # Note: Only ETS tier is currently implemented
     case get_current_storage_tier(data_key) do
       :ets -> get_data_from_ets(data_key)
-      :mnesia -> get_data_from_mnesia(data_key)
-      :dets -> get_data_from_dets(data_key)
       :unknown -> {:error, :data_not_found}
     end
   end
@@ -721,8 +720,6 @@ defmodule Grapple.Distributed.PersistenceManager do
     end
   end
 
-  defp data_exists_in_mnesia?(_data_key), do: false  # Placeholder
-  defp data_exists_in_dets?(_data_key), do: false   # Placeholder
 
   defp get_data_from_ets(data_key) do
     try do
@@ -739,8 +736,6 @@ defmodule Grapple.Distributed.PersistenceManager do
     end
   end
 
-  defp get_data_from_mnesia(_data_key), do: {:error, :not_implemented}
-  defp get_data_from_dets(_data_key), do: {:error, :not_implemented}
 
   defp store_data_in_ets(_data_key, _data), do: :ok  # Placeholder
   defp store_data_in_mnesia(_data_key, _data), do: :ok  # Placeholder
