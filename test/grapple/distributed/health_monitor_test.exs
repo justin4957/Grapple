@@ -4,10 +4,11 @@ defmodule Grapple.Distributed.HealthMonitorTest do
 
   setup do
     # Ensure the health monitor is started and ready
-    pid = case HealthMonitor.start_link([]) do
-      {:ok, pid} -> pid
-      {:error, {:already_started, pid}} -> pid
-    end
+    pid =
+      case HealthMonitor.start_link([]) do
+        {:ok, pid} -> pid
+        {:error, {:already_started, pid}} -> pid
+      end
 
     # Give the GenServer time to fully initialize
     :timer.sleep(10)
