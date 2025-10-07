@@ -1,7 +1,7 @@
 defmodule Grapple do
   @moduledoc """
   Grapple - High-Performance Distributed Graph Database
-  
+
   Grapple is a blazing-fast distributed graph database built with Elixir, designed for
   lightning-fast in-memory graph operations with advanced indexing, query optimization,
   and enterprise-ready distributed features.
@@ -21,12 +21,12 @@ defmodule Grapple do
   ```elixir
   # Start the interactive CLI
   Grapple.start_shell()
-  
+
   # Or use the API directly
   {:ok, node1} = Grapple.create_node(%{name: "Alice", role: "Engineer"})
   {:ok, node2} = Grapple.create_node(%{name: "Bob", role: "Manager"})
   {:ok, edge} = Grapple.create_edge(node1, node2, "reports_to", %{since: "2024"})
-  
+
   # Query the graph
   {:ok, path} = Grapple.find_path(node1, node2)
   {:ok, engineers} = Grapple.find_nodes_by_property(:role, "Engineer")
@@ -39,7 +39,7 @@ defmodule Grapple do
   ```elixir
   # Enable distributed mode
   Application.put_env(:grapple, :distributed, true)
-  
+
   # Use advanced lifecycle management
   Grapple.Distributed.LifecycleManager.classify_data("critical_data", :persistent)
   Grapple.Distributed.ReplicationEngine.replicate_data("user_data", data, :adaptive)
@@ -280,8 +280,8 @@ defmodule Grapple do
 
       iex> {:ok, alice} = Grapple.create_node(%{name: "Alice"})
       iex> {:ok, bob} = Grapple.create_node(%{name: "Bob"})
-      iex> {:ok, edge1} = Grapple.create_edge(alice, bob, "knows", %{since: "2020"})
-      iex> {:ok, edge2} = Grapple.create_edge(bob, alice, "knows", %{since: "2020"})
+      iex> {:ok, _edge1} = Grapple.create_edge(alice, bob, "knows", %{since: "2020"})
+      iex> {:ok, _edge2} = Grapple.create_edge(bob, alice, "knows", %{since: "2020"})
       iex> {:ok, edges} = Grapple.find_edges_by_label("knows")
       iex> length(edges)
       2

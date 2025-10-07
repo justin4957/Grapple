@@ -15,7 +15,7 @@ defmodule Grapple.Distributed.Schema do
     ])
 
     ensure_table(:data_partitions, [
-      {:type, :set}, 
+      {:type, :set},
       {:attributes, [:partition_id, :primary_node, :replica_nodes, :status]},
       {:disc_copies, [node()]},
       {:index, [:primary_node, :status]}
@@ -26,11 +26,13 @@ defmodule Grapple.Distributed.Schema do
 
   def ensure_table(table_name, options) do
     case :mnesia.create_table(table_name, options) do
-      {:atomic, :ok} -> 
+      {:atomic, :ok} ->
         :ok
-      {:aborted, {:already_exists, ^table_name}} -> 
+
+      {:aborted, {:already_exists, ^table_name}} ->
         :ok
-      {:aborted, reason} -> 
+
+      {:aborted, reason} ->
         {:error, reason}
     end
   end
@@ -39,7 +41,7 @@ defmodule Grapple.Distributed.Schema do
   defmodule ClusterNode do
     @moduledoc "Cluster node record - expandable"
     defstruct [:node_id, :status, :join_time, :capabilities]
-    
+
     def new(node_id, capabilities \\ %{}) do
       %__MODULE__{
         node_id: node_id,
@@ -53,7 +55,7 @@ defmodule Grapple.Distributed.Schema do
   defmodule DataPartition do
     @moduledoc "Data partition record - expandable"
     defstruct [:partition_id, :primary_node, :replica_nodes, :status]
-    
+
     def new(partition_id, primary_node) do
       %__MODULE__{
         partition_id: partition_id,

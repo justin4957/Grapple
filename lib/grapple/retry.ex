@@ -116,14 +116,30 @@ defmodule Grapple.Retry do
   end
 
   # Private functions
-  defp do_retry(_fun, attempt, max_attempts, _base_delay_ms, _max_delay_ms, _backoff_factor, _on_retry_callback)
+  defp do_retry(
+         _fun,
+         attempt,
+         max_attempts,
+         _base_delay_ms,
+         _max_delay_ms,
+         _backoff_factor,
+         _on_retry_callback
+       )
        when attempt > max_attempts do
     Logger.error("Max retry attempts (#{max_attempts}) exceeded")
 
     Error.timeout_error("retry", max_attempts)
   end
 
-  defp do_retry(fun, attempt, max_attempts, base_delay_ms, max_delay_ms, backoff_factor, on_retry_callback) do
+  defp do_retry(
+         fun,
+         attempt,
+         max_attempts,
+         base_delay_ms,
+         max_delay_ms,
+         backoff_factor,
+         on_retry_callback
+       ) do
     case safe_execute(fun) do
       {:ok, _value} = success ->
         if attempt > 1 do
@@ -183,8 +199,6 @@ defmodule Grapple.Retry do
   end
 
   defp log_distributed_retry(attempt, error) do
-    Logger.warning(
-      "Distributed operation retry #{attempt}: #{Error.format_error(error)}"
-    )
+    Logger.warning("Distributed operation retry #{attempt}: #{Error.format_error(error)}")
   end
 end

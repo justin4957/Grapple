@@ -21,12 +21,12 @@ defmodule Grapple.Visualization.AsciiRenderer do
 
   def render_subgraph(start_node_id, depth \\ 2, config \\ %{}) do
     config = Map.merge(@default_config, config)
-    
+
     case collect_subgraph(start_node_id, depth) do
       {:ok, {nodes, edges}} ->
         layout = calculate_layout(nodes, edges, config)
         render_layout(layout, config)
-      
+
       {:error, reason} ->
         "Error rendering subgraph: #{reason}"
     end
@@ -53,7 +53,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
       total_edges: count_total_edges(),
       connected_components: count_connected_components()
     }
-    
+
     """
     Graph Statistics:
     ────────────────
@@ -68,7 +68,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
       {:ok, nodes} ->
         edges = collect_edges_between_nodes(nodes)
         {:ok, {nodes, edges}}
-      
+
       error ->
         error
     end
@@ -94,17 +94,17 @@ defmodule Grapple.Visualization.AsciiRenderer do
         {:ok, node} ->
           new_visited = MapSet.put(visited, node_id)
           new_acc = [node | acc]
-          
+
           {:ok, edges} = EtsGraphStore.get_edges_from(node_id)
           connected_nodes = edges |> Enum.map(fn {_from, edge} -> edge.to end)
-          
+
           traverse_recursive(
             connected_nodes ++ rest,
             depth - 1,
             new_visited,
             new_acc
           )
-        
+
         {:error, :not_found} ->
           traverse_recursive(rest, depth, visited, acc)
       end
@@ -113,7 +113,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
 
   defp collect_edges_between_nodes(nodes) do
     node_ids = MapSet.new(nodes, fn node -> node.id end)
-    
+
     nodes
     |> Enum.flat_map(fn node ->
       case EtsGraphStore.get_edges_from(node.id) do
@@ -123,7 +123,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
             MapSet.member?(node_ids, edge.to)
           end)
           |> Enum.map(fn {_from, edge} -> edge end)
-        
+
         _ ->
           []
       end
@@ -132,7 +132,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
   end
 
   defp collect_path_data(path) do
-    nodes = 
+    nodes =
       path
       |> Enum.map(fn node_id ->
         case EtsGraphStore.get_node(node_id) do
@@ -141,15 +141,15 @@ defmodule Grapple.Visualization.AsciiRenderer do
         end
       end)
       |> Enum.reject(&is_nil/1)
-    
-    edges = 
+
+    edges =
       path
       |> Enum.chunk_every(2, 1, :discard)
       |> Enum.map(fn [from_id, to_id] ->
         find_edge_between(from_id, to_id)
       end)
       |> Enum.reject(&is_nil/1)
-    
+
     {:ok, {nodes, edges}}
   end
 
@@ -162,7 +162,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
           {_from, edge} -> edge
           nil -> nil
         end
-      
+
       _ ->
         nil
     end
@@ -172,10 +172,10 @@ defmodule Grapple.Visualization.AsciiRenderer do
     case length(nodes) do
       n when n <= 3 ->
         calculate_linear_layout(nodes, edges, config)
-      
+
       n when n <= 8 ->
         calculate_circular_layout(nodes, edges, config)
-      
+
       _ ->
         calculate_grid_layout(nodes, edges, config)
     end
@@ -184,7 +184,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
   defp calculate_linear_layout(nodes, _edges, config) do
     max_width = config.max_width - 10
     spacing = max(3, div(max_width, length(nodes)))
-    
+
     nodes
     |> Enum.with_index()
     |> Enum.map(fn {node, index} ->
@@ -199,13 +199,14 @@ defmodule Grapple.Visualization.AsciiRenderer do
     center_x = div(config.max_width, 2)
     center_y = div(config.max_height, 2)
     radius = min(center_x - 5, center_y - 3)
-    
+
     nodes
     |> Enum.with_index()
     |> Enum.map(fn {node, index} ->
       angle = 2 * :math.pi() * index / length(nodes)
       x = center_x + round(radius * :math.cos(angle))
-      y = center_y + round(radius * :math.sin(angle) / 2)  # Compress vertically for ASCII
+      # Compress vertically for ASCII
+      y = center_y + round(radius * :math.sin(angle) / 2)
       {node, {x, y}}
     end)
     |> Enum.into(%{})
@@ -214,10 +215,10 @@ defmodule Grapple.Visualization.AsciiRenderer do
   defp calculate_grid_layout(nodes, _edges, config) do
     cols = round(:math.sqrt(length(nodes)))
     rows = ceil(length(nodes) / cols)
-    
+
     col_spacing = div(config.max_width - 10, max(cols - 1, 1))
     row_spacing = div(config.max_height - 6, max(rows - 1, 1))
-    
+
     nodes
     |> Enum.with_index()
     |> Enum.map(fn {node, index} ->
@@ -232,7 +233,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
 
   defp render_layout(layout, config) do
     grid = create_empty_grid(config)
-    
+
     grid
     |> place_nodes(layout, config)
     |> place_edges(layout, config)
@@ -241,7 +242,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
 
   defp render_path_layout(layout, config) do
     nodes = Map.keys(layout)
-    
+
     if length(nodes) <= 5 do
       # Simple horizontal path
       nodes
@@ -300,6 +301,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
     |> Enum.with_index()
     |> Enum.reduce(grid, fn {char, offset}, acc_grid ->
       x = start_x + offset
+
       if x < config.max_width do
         put_in_grid(acc_grid, x, y, char)
       else
@@ -321,7 +323,7 @@ defmodule Grapple.Visualization.AsciiRenderer do
 
   defp format_node_label(node, config) do
     base_label = "#{node.id}"
-    
+
     if config.show_properties and map_size(node.properties) > 0 do
       # Show first property for compactness
       {key, value} = node.properties |> Enum.take(1) |> List.first()
@@ -336,7 +338,10 @@ defmodule Grapple.Visualization.AsciiRenderer do
   end
 
   # Placeholder functions for graph statistics
-  defp count_total_nodes, do: 0  # TODO: Implement actual counting
-  defp count_total_edges, do: 0  # TODO: Implement actual counting
-  defp count_connected_components, do: 1  # TODO: Implement actual analysis
+  # TODO: Implement actual counting
+  defp count_total_nodes, do: 0
+  # TODO: Implement actual counting
+  defp count_total_edges, do: 0
+  # TODO: Implement actual analysis
+  defp count_connected_components, do: 1
 end

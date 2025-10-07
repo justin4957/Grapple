@@ -1,0 +1,4 @@
+# Coveralls configuration
+skip_files:
+  - test/
+  - bench/

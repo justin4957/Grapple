@@ -6,7 +6,6 @@ defmodule Grapple.Distributed.ClusterManager do
 
   use GenServer
   alias Grapple.Distributed.Schema
-  alias Grapple.Error
 
   require Logger
 
@@ -19,29 +18,29 @@ defmodule Grapple.Distributed.ClusterManager do
   def init(opts) do
     # Start Mnesia if not already running
     ensure_mnesia_started()
-    
+
     # Create schema if it doesn't exist
     ensure_schema_exists()
-    
+
     # Setup schema tables
     Schema.setup_tables()
-    
+
     # Initialize cluster state
     local_node = node()
     partition_count = opts[:partition_count] || 64
-    
+
     state = %__MODULE__{
       local_node: local_node,
       cluster_state: %{nodes: [local_node], partitions: %{}},
       partition_count: partition_count
     }
-    
+
     # Register this node in cluster
     register_local_node()
-    
+
     # Start basic monitoring
     :net_kernel.monitor_nodes(true)
-    
+
     {:ok, state}
   end
 
@@ -64,7 +63,7 @@ defmodule Grapple.Distributed.ClusterManager do
       :ok ->
         new_state = refresh_cluster_state(state)
         {:reply, {:ok, :joined}, new_state}
-      
+
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
@@ -77,6 +76,7 @@ defmodule Grapple.Distributed.ClusterManager do
       partition_count: state.partition_count,
       status: :active
     }
+
     {:reply, cluster_info, state}
   end
 
@@ -104,13 +104,17 @@ defmodule Grapple.Distributed.ClusterManager do
   # Private functions - minimal implementations
   defp ensure_mnesia_started do
     case :mnesia.system_info(:is_running) do
-      :yes -> :ok
-      :no -> 
+      :yes ->
+        :ok
+
+      :no ->
         :mnesia.start()
         :ok
-      :starting -> 
+
+      :starting ->
         :timer.sleep(100)
         ensure_mnesia_started()
+
       :stopping ->
         :timer.sleep(500)
         ensure_mnesia_started()
@@ -119,11 +123,14 @@ defmodule Grapple.Distributed.ClusterManager do
 
   defp register_local_node do
     node_info = Schema.ClusterNode.new(node(), get_node_capabilities())
-    
-    transaction_result = :mnesia.transaction(fn ->
-      :mnesia.write({:cluster_nodes, node(), :active, DateTime.utc_now(), node_info.capabilities})
-    end)
-    
+
+    transaction_result =
+      :mnesia.transaction(fn ->
+        :mnesia.write(
+          {:cluster_nodes, node(), :active, DateTime.utc_now(), node_info.capabilities}
+        )
+      end)
+
     case transaction_result do
       {:atomic, :ok} -> :ok
       {:aborted, reason} -> {:error, reason}
@@ -169,25 +176,32 @@ defmodule Grapple.Distributed.ClusterManager do
 
   defp refresh_cluster_state(state) do
     active_nodes = get_active_nodes()
-    
+
     # Update local cluster state
-    %{state | cluster_state: %{
-      nodes: active_nodes,
-      partitions: calculate_partition_assignments(active_nodes, state.partition_count)
-    }}
+    %{
+      state
+      | cluster_state: %{
+          nodes: active_nodes,
+          partitions: calculate_partition_assignments(active_nodes, state.partition_count)
+        }
+    }
   end
 
   defp get_active_nodes do
     case :mnesia.transaction(fn ->
-      :mnesia.select(:cluster_nodes, [{{:cluster_nodes, :"$1", :active, :_, :_}, [], [:"$1"]}])
-    end) do
+           :mnesia.select(:cluster_nodes, [
+             {{:cluster_nodes, :"$1", :active, :_, :_}, [], [:"$1"]}
+           ])
+         end) do
       {:atomic, nodes} -> nodes
-      {:aborted, _} -> [node()]  # Fallback to local node only
+      # Fallback to local node only
+      {:aborted, _} -> [node()]
     end
   end
 
   defp get_node_for_partition(partition_id) do
     active_nodes = get_active_nodes()
+
     if length(active_nodes) > 0 do
       Enum.at(active_nodes, rem(partition_id, length(active_nodes)))
     else
@@ -200,10 +214,11 @@ defmodule Grapple.Distributed.ClusterManager do
     nodes
     |> Enum.with_index()
     |> Enum.flat_map(fn {node, index} ->
-      assigned_partitions = Stream.iterate(index, &(&1 + length(nodes)))
-                           |> Stream.take_while(&(&1 < partition_count))
-                           |> Enum.to_list()
-      
+      assigned_partitions =
+        Stream.iterate(index, &(&1 + length(nodes)))
+        |> Stream.take_while(&(&1 < partition_count))
+        |> Enum.to_list()
+
       Enum.map(assigned_partitions, fn partition_id -> {partition_id, node} end)
     end)
     |> Enum.into(%{})
@@ -215,6 +230,7 @@ defmodule Grapple.Distributed.ClusterManager do
       case :mnesia.read(:cluster_nodes, failed_node) do
         [{:cluster_nodes, ^failed_node, _, join_time, capabilities}] ->
           :mnesia.write({:cluster_nodes, failed_node, :failed, join_time, capabilities})
+
         [] ->
           :ok
       end

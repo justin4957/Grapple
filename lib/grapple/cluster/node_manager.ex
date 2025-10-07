@@ -15,13 +15,13 @@ defmodule Grapple.Cluster.NodeManager do
   def init(_opts) do
     local_node = Node.self()
     :net_kernel.monitor_nodes(true)
-    
+
     state = %__MODULE__{
       nodes: [local_node],
       local_node: local_node,
       partition_ring: build_partition_ring([local_node])
     }
-    
+
     {:ok, state}
   end
 
@@ -73,6 +73,7 @@ defmodule Grapple.Cluster.NodeManager do
       local_node: state.local_node,
       partitions: length(state.partition_ring)
     }
+
     {:reply, info, state}
   end
 
@@ -92,7 +93,7 @@ defmodule Grapple.Cluster.NodeManager do
 
   defp build_partition_ring(nodes) do
     partitions_per_node = 64
-    
+
     nodes
     |> Enum.flat_map(fn node ->
       0..(partitions_per_node - 1)

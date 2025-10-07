@@ -75,13 +75,15 @@ defmodule Grapple.Distributed.LifecycleManager do
       eviction_priority: :low
     },
     computational: %{
-      ttl: 3600,  # 1 hour default
+      # 1 hour default
+      ttl: 3600,
       replication: 2,
       persistence: :memory_primary,
       eviction_priority: :medium
     },
     session: %{
-      ttl: 1800,  # 30 minutes
+      # 30 minutes
+      ttl: 1800,
       replication: 1,
       persistence: :memory_only,
       eviction_priority: :high
@@ -296,7 +298,7 @@ defmodule Grapple.Distributed.LifecycleManager do
   # GenServer callbacks
   def init(_opts) do
     local_node = node()
-    
+
     state = %__MODULE__{
       local_node: local_node,
       data_classifications: %{},
@@ -307,13 +309,13 @@ defmodule Grapple.Distributed.LifecycleManager do
 
     # Start periodic cleanup
     schedule_cleanup()
-    
+
     {:ok, state}
   end
 
   def handle_call({:classify_data, key, classification, metadata}, _from, state) do
     policy = Map.get(@lifecycle_policies, classification, @lifecycle_policies.ephemeral)
-    
+
     data_info = %{
       key: key,
       classification: classification,
@@ -326,14 +328,15 @@ defmodule Grapple.Distributed.LifecycleManager do
 
     # Determine placement strategy
     placement_strategy = determine_placement_strategy(key, policy, state)
-    
+
     # Update state
     new_classifications = Map.put(state.data_classifications, key, data_info)
     new_strategies = Map.put(state.replication_strategies, key, placement_strategy)
-    
-    new_state = %{state | 
-      data_classifications: new_classifications,
-      replication_strategies: new_strategies
+
+    new_state = %{
+      state
+      | data_classifications: new_classifications,
+        replication_strategies: new_strategies
     }
 
     {:reply, {:ok, placement_strategy}, new_state}
@@ -348,7 +351,7 @@ defmodule Grapple.Distributed.LifecycleManager do
     case Map.get(state.data_classifications, key) do
       nil ->
         {:reply, {:error, :key_not_classified}, state}
-      
+
       data_info ->
         target_replicas = replica_count || data_info.policy.replication
         nodes = select_replication_nodes(key, target_replicas, state)
@@ -363,6 +366,7 @@ defmodule Grapple.Distributed.LifecycleManager do
       memory_usage: calculate_memory_usage(state),
       eviction_candidates: get_eviction_candidates(state)
     }
+
     {:reply, stats, state}
   end
 
@@ -376,13 +380,14 @@ defmodule Grapple.Distributed.LifecycleManager do
     case Map.get(state.data_classifications, key) do
       nil ->
         {:noreply, state}
-      
+
       data_info ->
-        updated_info = %{data_info | 
-          last_accessed: timestamp,
-          access_count: data_info.access_count + 1
+        updated_info = %{
+          data_info
+          | last_accessed: timestamp,
+            access_count: data_info.access_count + 1
         }
-        
+
         new_classifications = Map.put(state.data_classifications, key, updated_info)
         new_state = %{state | data_classifications: new_classifications}
         {:noreply, new_state}
@@ -407,7 +412,7 @@ defmodule Grapple.Distributed.LifecycleManager do
 
   defp determine_placement_strategy(key, policy, _state) do
     cluster_info = ClusterManager.get_cluster_info()
-    
+
     %{
       primary_node: select_primary_node(key, cluster_info.nodes),
       replica_nodes: select_replica_nodes(key, policy.replication - 1, cluster_info.nodes),
@@ -441,12 +446,12 @@ defmodule Grapple.Distributed.LifecycleManager do
 
   defp select_replication_nodes(key, replica_count, state) do
     cluster_info = ClusterManager.get_cluster_info()
-    
+
     case Map.get(state.replication_strategies, key) do
       nil ->
         # Fallback: use simple consistent hashing
         select_replica_nodes(key, replica_count, cluster_info.nodes)
-      
+
       strategy ->
         [strategy.primary_node | strategy.replica_nodes]
         |> Enum.take(replica_count)
@@ -455,24 +460,30 @@ defmodule Grapple.Distributed.LifecycleManager do
 
   defp redistribute_from_failed_node(failed_node, state) do
     # Find all data that was replicated on the failed node
-    affected_keys = state.replication_strategies
-    |> Enum.filter(fn {_key, strategy} ->
-      strategy.primary_node == failed_node or failed_node in strategy.replica_nodes
-    end)
-    |> Enum.map(fn {key, _strategy} -> key end)
+    affected_keys =
+      state.replication_strategies
+      |> Enum.filter(fn {_key, strategy} ->
+        strategy.primary_node == failed_node or failed_node in strategy.replica_nodes
+      end)
+      |> Enum.map(fn {key, _strategy} -> key end)
 
     # Recalculate placement for affected keys
     cluster_info = ClusterManager.get_cluster_info()
     active_nodes = List.delete(cluster_info.nodes, failed_node)
 
-    new_strategies = Enum.reduce(affected_keys, state.replication_strategies, fn key, acc ->
-      case Map.get(state.data_classifications, key) do
-        nil -> acc
-        data_info ->
-          new_strategy = determine_placement_strategy_for_nodes(key, data_info.policy, active_nodes)
-          Map.put(acc, key, new_strategy)
-      end
-    end)
+    new_strategies =
+      Enum.reduce(affected_keys, state.replication_strategies, fn key, acc ->
+        case Map.get(state.data_classifications, key) do
+          nil ->
+            acc
+
+          data_info ->
+            new_strategy =
+              determine_placement_strategy_for_nodes(key, data_info.policy, active_nodes)
+
+            Map.put(acc, key, new_strategy)
+        end
+      end)
 
     %{state | replication_strategies: new_strategies}
   end
@@ -489,32 +500,37 @@ defmodule Grapple.Distributed.LifecycleManager do
 
   defp perform_cleanup(state) do
     current_time = System.system_time(:second)
-    
+
     # Remove expired data classifications
-    active_classifications = state.data_classifications
-    |> Enum.filter(fn {_key, data_info} ->
-      is_data_active(data_info, current_time)
-    end)
-    |> Enum.into(%{})
+    active_classifications =
+      state.data_classifications
+      |> Enum.filter(fn {_key, data_info} ->
+        is_data_active(data_info, current_time)
+      end)
+      |> Enum.into(%{})
 
     # Clean up corresponding strategies
-    active_strategies = state.replication_strategies
-    |> Enum.filter(fn {key, _strategy} ->
-      Map.has_key?(active_classifications, key)
-    end)
-    |> Enum.into(%{})
+    active_strategies =
+      state.replication_strategies
+      |> Enum.filter(fn {key, _strategy} ->
+        Map.has_key?(active_classifications, key)
+      end)
+      |> Enum.into(%{})
 
-    %{state | 
-      data_classifications: active_classifications,
-      replication_strategies: active_strategies
+    %{
+      state
+      | data_classifications: active_classifications,
+        replication_strategies: active_strategies
     }
   end
 
   defp is_data_active(data_info, current_time) do
     case data_info.policy.ttl do
-      :infinity -> true
+      :infinity ->
+        true
+
       ttl when is_integer(ttl) ->
-        (current_time - data_info.last_accessed) < ttl
+        current_time - data_info.last_accessed < ttl
     end
   end
 
@@ -535,26 +551,33 @@ defmodule Grapple.Distributed.LifecycleManager do
 
   defp get_eviction_candidates(state) do
     current_time = System.system_time(:second)
-    
+
     state.data_classifications
     |> Enum.filter(fn {_key, data_info} ->
       data_info.policy.eviction_priority != :never
     end)
-    |> Enum.sort_by(fn {_key, data_info} ->
-      # Sort by last access time and eviction priority
-      priority_weight = case data_info.policy.eviction_priority do
-        :high -> 1000
-        :medium -> 500
-        :low -> 100
-        :never -> 0
-      end
-      (current_time - data_info.last_accessed) + priority_weight
-    end, :desc)
-    |> Enum.take(10)  # Top 10 candidates
+    |> Enum.sort_by(
+      fn {_key, data_info} ->
+        # Sort by last access time and eviction priority
+        priority_weight =
+          case data_info.policy.eviction_priority do
+            :high -> 1000
+            :medium -> 500
+            :low -> 100
+            :never -> 0
+          end
+
+        current_time - data_info.last_accessed + priority_weight
+      end,
+      :desc
+    )
+    # Top 10 candidates
+    |> Enum.take(10)
     |> Enum.map(fn {key, _data_info} -> key end)
   end
 
   defp schedule_cleanup do
-    Process.send_after(self(), :cleanup_expired, 30_000)  # Every 30 seconds
+    # Every 30 seconds
+    Process.send_after(self(), :cleanup_expired, 30_000)
   end
 end

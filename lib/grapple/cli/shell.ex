@@ -9,7 +9,14 @@ defmodule Grapple.CLI.Shell do
   alias Grapple.Storage.EtsGraphStore
   alias Grapple.CLI.Autocomplete
   alias Grapple.Visualization.AsciiRenderer
-  alias Grapple.Distributed.{LifecycleManager, ReplicationEngine, Orchestrator, PersistenceManager}
+
+  alias Grapple.Distributed.{
+    LifecycleManager,
+    ReplicationEngine,
+    Orchestrator,
+    PersistenceManager
+  }
+
   alias Grapple.Error
 
   def start do
@@ -23,18 +30,18 @@ defmodule Grapple.CLI.Shell do
     case get_input_with_completion("grapple> ") do
       :eof ->
         IO.puts("\nBye!")
-        
+
       {:error, reason} ->
         IO.puts("Input error: #{reason}")
         repl_loop()
-        
+
       input when is_binary(input) ->
         input
         |> String.trim()
         |> handle_command_with_validation()
-        
+
         repl_loop()
-        
+
       _ ->
         repl_loop()
     end
@@ -46,7 +53,7 @@ defmodule Grapple.CLI.Shell do
   defp handle_command("help") do
     IO.puts("""
     Available commands:
-    
+
     Graph Operations:
       CREATE NODE {prop: value}          - Create a new node
       CREATE EDGE (from)-[label]->(to)   - Create a new edge
@@ -57,36 +64,36 @@ defmodule Grapple.CLI.Shell do
       SHOW GRAPH                         - Show graph statistics
       FIND NODES <prop> <value>          - Find nodes by property
       FIND EDGES <label>                 - Find edges by label
-    
+
     Distributed Operations:
       CLUSTER STATUS                     - Show distributed cluster status
       CLUSTER JOIN <node>                - Join another cluster node
       CLUSTER HEALTH                     - Show cluster health information
       CLUSTER SHUTDOWN [reason]          - Initiate graceful cluster shutdown
       CLUSTER STARTUP [mode]             - Coordinate cluster startup
-    
+
     Lifecycle Management:
       LIFECYCLE CLASSIFY <key> <type>    - Classify data lifecycle (ephemeral|computational|session|persistent)
       LIFECYCLE STATS                    - Show lifecycle management statistics
       LIFECYCLE MIGRATE <key> <tier>     - Migrate data to storage tier (ets|mnesia|dets)
       LIFECYCLE POLICIES                 - Show active persistence policies
       LIFECYCLE OPTIMIZE                 - Trigger storage optimization
-    
+
     Replication Management:
       REPLICA CREATE <key> <policy>      - Create replica set with policy (minimal|balanced|maximum|adaptive)
       REPLICA STATUS <key>               - Show replica health for data key
       REPLICA RESOLVE <key>              - Resolve conflicts for data key
       REPLICA STATS                      - Show replication statistics
-    
+
     Cluster Operations:
       JOIN <node@host>                   - Join cluster
       CLUSTER INFO                       - Show cluster status
       NODES                              - List cluster nodes
-    
+
     System:
       help                               - Show this help
       quit/exit                          - Exit shell
-    
+
     Autocomplete Features:
       TAB                                - Complete current command
       ?                                  - Show all available commands
@@ -108,6 +115,7 @@ defmodule Grapple.CLI.Shell do
   defp handle_command("NODES") do
     info = NodeManager.get_cluster_info()
     IO.puts("Cluster Nodes:")
+
     Enum.each(info.nodes, fn node ->
       status = if node == info.local_node, do: " (local)", else: ""
       IO.puts("  - #{node}#{status}")
@@ -116,11 +124,11 @@ defmodule Grapple.CLI.Shell do
 
   defp handle_command("JOIN " <> node_name) do
     node_atom = String.to_atom(String.trim(node_name))
-    
+
     case NodeManager.join_cluster(node_atom) do
       {:ok, :connected} ->
         IO.puts("Successfully joined cluster node: #{node_atom}")
-      
+
       {:error, :connection_failed} ->
         IO.puts("Failed to connect to node: #{node_atom}")
     end
@@ -149,13 +157,13 @@ defmodule Grapple.CLI.Shell do
     case String.split(args, " ", trim: true) do
       [node_id_str] ->
         execute_traverse(node_id_str, 1)
-      
+
       [node_id_str, depth_str] ->
         case Integer.parse(depth_str) do
           {depth, ""} -> execute_traverse(node_id_str, depth)
           _ -> IO.puts("Invalid depth: #{depth_str}")
         end
-      
+
       _ ->
         IO.puts("Usage: TRAVERSE <node_id> [depth]")
     end
@@ -169,15 +177,15 @@ defmodule Grapple.CLI.Shell do
             case Executor.find_path(from, to) do
               {:ok, path} ->
                 IO.puts("Path found: #{Enum.join(path, " -> ")}")
-              
+
               {:error, :path_not_found} ->
                 IO.puts("No path found between #{from} and #{to}")
             end
-          
+
           _ ->
             IO.puts("Invalid node IDs")
         end
-      
+
       _ ->
         IO.puts("Usage: PATH <from_node_id> <to_node_id>")
     end
@@ -187,10 +195,11 @@ defmodule Grapple.CLI.Shell do
     case Executor.execute("MATCH " <> query) do
       {:ok, results} ->
         IO.puts("Query results:")
+
         Enum.each(results, fn result ->
           IO.puts("  #{inspect(result)}")
         end)
-      
+
       {:error, reason} ->
         IO.puts("Query error: #{reason}")
     end
@@ -200,13 +209,13 @@ defmodule Grapple.CLI.Shell do
     case String.split(args, " ", trim: true) do
       [node_id_str] ->
         execute_visualization(node_id_str, 2)
-      
+
       [node_id_str, depth_str] ->
         case Integer.parse(depth_str) do
           {depth, ""} -> execute_visualization(node_id_str, depth)
           _ -> IO.puts("Invalid depth: #{depth_str}")
         end
-      
+
       _ ->
         IO.puts("Usage: VISUALIZE <node_id> [depth]")
     end
@@ -219,15 +228,17 @@ defmodule Grapple.CLI.Shell do
     IO.puts("  Total Edges: #{stats.total_edges}")
     IO.puts("  Memory Usage:")
     IO.puts("    Nodes: #{stats.memory_usage.nodes} words")
-    IO.puts("    Edges: #{stats.memory_usage.edges} words") 
+    IO.puts("    Edges: #{stats.memory_usage.edges} words")
     IO.puts("    Indexes: #{stats.memory_usage.indexes} words")
   end
 
   defp handle_command("CLUSTER STATUS") do
     case Process.whereis(Grapple.Distributed.ClusterManager) do
       nil ->
-        IO.puts("Distributed mode not enabled. Start with: Application.put_env(:grapple, :distributed, true)")
-      
+        IO.puts(
+          "Distributed mode not enabled. Start with: Application.put_env(:grapple, :distributed, true)"
+        )
+
       _pid ->
         cluster_info = Grapple.Distributed.ClusterManager.get_cluster_info()
         IO.puts("Distributed Cluster Status:")
@@ -242,7 +253,7 @@ defmodule Grapple.CLI.Shell do
     case Process.whereis(Grapple.Distributed.HealthMonitor) do
       nil ->
         IO.puts("Health monitoring not available in this mode")
-      
+
       _pid ->
         health = Grapple.Distributed.HealthMonitor.get_cluster_health()
         IO.puts("Cluster Health Report:")
@@ -250,7 +261,7 @@ defmodule Grapple.CLI.Shell do
         IO.puts("  Monitored Nodes: #{length(health.monitored_nodes)}")
         IO.puts("  Failed Nodes: #{length(health.failed_nodes)}")
         IO.puts("  Recovering Nodes: #{length(health.recovering_nodes)}")
-        
+
         if length(health.failed_nodes) > 0 do
           IO.puts("  Failed: #{inspect(health.failed_nodes)}")
         end
@@ -261,14 +272,14 @@ defmodule Grapple.CLI.Shell do
     case Process.whereis(Grapple.Distributed.ClusterManager) do
       nil ->
         IO.puts("Distributed mode not enabled")
-      
+
       _pid ->
         target_node = String.to_atom(String.trim(node_name))
-        
+
         case Grapple.Distributed.ClusterManager.join_cluster(target_node) do
           {:ok, :joined} ->
             IO.puts("Successfully joined cluster at: #{target_node}")
-          
+
           {:error, reason} ->
             IO.puts("Failed to join cluster: #{inspect(reason)}")
         end
@@ -276,21 +287,23 @@ defmodule Grapple.CLI.Shell do
   end
 
   defp handle_command("CLUSTER SHUTDOWN" <> args) do
-    reason = case String.trim(args) do
-      "" -> :planned
-      reason_str -> String.to_atom(reason_str)
-    end
-    
+    reason =
+      case String.trim(args) do
+        "" -> :planned
+        reason_str -> String.to_atom(reason_str)
+      end
+
     case Process.whereis(Orchestrator) do
       nil ->
         IO.puts("Orchestration not available")
-      
+
       _pid ->
         IO.puts("🔄 Initiating graceful cluster shutdown...")
+
         case Orchestrator.initiate_graceful_shutdown(reason) do
           {:ok, :shutdown_complete} ->
             IO.puts("✅ Cluster shutdown completed gracefully")
-          
+
           {:error, reason} ->
             IO.puts("❌ Shutdown failed: #{inspect(reason)}")
         end
@@ -298,21 +311,23 @@ defmodule Grapple.CLI.Shell do
   end
 
   defp handle_command("CLUSTER STARTUP" <> args) do
-    mode = case String.trim(args) do
-      "" -> :standard
-      mode_str -> String.to_atom(mode_str)
-    end
-    
+    mode =
+      case String.trim(args) do
+        "" -> :standard
+        mode_str -> String.to_atom(mode_str)
+      end
+
     case Process.whereis(Orchestrator) do
       nil ->
         IO.puts("Orchestration not available")
-      
+
       _pid ->
         IO.puts("🚀 Coordinating cluster startup...")
+
         case Orchestrator.coordinate_startup(mode) do
           {:ok, :startup_complete} ->
             IO.puts("✅ Cluster startup completed successfully")
-          
+
           {:error, reason} ->
             IO.puts("❌ Startup failed: #{inspect(reason)}")
         end
@@ -323,11 +338,11 @@ defmodule Grapple.CLI.Shell do
     case String.split(args, " ", parts: 2, trim: true) do
       [key, classification_str] ->
         classification = String.to_atom(classification_str)
-        
+
         case Process.whereis(LifecycleManager) do
           nil ->
             IO.puts("Lifecycle management not available")
-          
+
           _pid ->
             case LifecycleManager.classify_data(key, classification) do
               {:ok, placement_strategy} ->
@@ -335,12 +350,12 @@ defmodule Grapple.CLI.Shell do
                 IO.puts("   Primary node: #{placement_strategy.primary_node}")
                 IO.puts("   Replication factor: #{placement_strategy.replication_factor}")
                 IO.puts("   Persistence tier: #{placement_strategy.persistence_tier}")
-              
+
               {:error, reason} ->
                 IO.puts("❌ Classification failed: #{inspect(reason)}")
             end
         end
-      
+
       _ ->
         IO.puts("Usage: LIFECYCLE CLASSIFY <key> <type>")
         IO.puts("Types: ephemeral, computational, session, persistent")
@@ -351,15 +366,17 @@ defmodule Grapple.CLI.Shell do
     case Process.whereis(LifecycleManager) do
       nil ->
         IO.puts("Lifecycle management not available")
-      
+
       _pid ->
         stats = LifecycleManager.get_lifecycle_stats()
         IO.puts("Lifecycle Management Statistics:")
         IO.puts("  Total classified: #{stats.total_classified}")
         IO.puts("  Classifications:")
+
         Enum.each(stats.classifications, fn {type, count} ->
           IO.puts("    #{type}: #{count}")
         end)
+
         IO.puts("  Memory usage: #{stats.memory_usage.total} bytes")
         IO.puts("  Eviction candidates: #{length(stats.eviction_candidates)}")
     end
@@ -369,11 +386,11 @@ defmodule Grapple.CLI.Shell do
     case String.split(args, " ", parts: 2, trim: true) do
       [key, tier_str] ->
         tier = String.to_atom(tier_str)
-        
+
         case Process.whereis(PersistenceManager) do
           nil ->
             IO.puts("Persistence management not available")
-          
+
           _pid ->
             case PersistenceManager.migrate_to_tier(key, tier) do
               {:ok, migration_result} ->
@@ -382,12 +399,12 @@ defmodule Grapple.CLI.Shell do
                 IO.puts("   From tier: #{migration_result.from_tier}")
                 IO.puts("   To tier: #{migration_result.to_tier}")
                 IO.puts("   Reason: #{migration_result.reason}")
-              
+
               {:error, reason} ->
                 IO.puts("❌ Migration failed: #{inspect(reason)}")
             end
         end
-      
+
       _ ->
         IO.puts("Usage: LIFECYCLE MIGRATE <key> <tier>")
         IO.puts("Tiers: ets, mnesia, dets")
@@ -398,15 +415,17 @@ defmodule Grapple.CLI.Shell do
     case Process.whereis(PersistenceManager) do
       nil ->
         IO.puts("Persistence management not available")
-      
+
       _pid ->
         stats = PersistenceManager.get_persistence_stats()
         IO.puts("Persistence Policies:")
         IO.puts("  Active policies: #{stats.active_policies}")
         IO.puts("  Tier utilization:")
+
         Enum.each(stats.tier_utilization, fn {tier, util} ->
           IO.puts("    #{tier}: #{util.item_count} items, #{div(util.memory_used, 1024)}KB")
         end)
+
         IO.puts("  Migration queue: #{stats.migration_queue_size} pending")
         IO.puts("  Cost efficiency: #{Float.round(stats.cost_efficiency, 2)} units/item")
     end
@@ -416,7 +435,7 @@ defmodule Grapple.CLI.Shell do
     case Process.whereis(PersistenceManager) do
       nil ->
         IO.puts("Persistence management not available")
-      
+
       _pid ->
         PersistenceManager.optimize_storage_allocation()
         IO.puts("✅ Storage optimization triggered")
@@ -427,11 +446,11 @@ defmodule Grapple.CLI.Shell do
     case String.split(args, " ", parts: 2, trim: true) do
       [key, policy_str] ->
         policy = String.to_atom(policy_str)
-        
+
         case Process.whereis(ReplicationEngine) do
           nil ->
             IO.puts("Replication engine not available")
-          
+
           _pid ->
             case ReplicationEngine.replicate_data(key, %{key: key}, policy) do
               {:ok, replica_set} ->
@@ -440,12 +459,12 @@ defmodule Grapple.CLI.Shell do
                 IO.puts("   Primary node: #{replica_set.primary_node}")
                 IO.puts("   Replicas: #{length(replica_set.replicas)}")
                 IO.puts("   Strategy: #{inspect(replica_set.strategy)}")
-              
+
               {:error, reason} ->
                 IO.puts("❌ Replication failed: #{inspect(reason)}")
             end
         end
-      
+
       _ ->
         IO.puts("Usage: REPLICA CREATE <key> <policy>")
         IO.puts("Policies: minimal, balanced, maximum, adaptive")
@@ -454,11 +473,11 @@ defmodule Grapple.CLI.Shell do
 
   defp handle_command("REPLICA STATUS " <> key) do
     key = String.trim(key)
-    
+
     case Process.whereis(ReplicationEngine) do
       nil ->
         IO.puts("Replication engine not available")
-      
+
       _pid ->
         case ReplicationEngine.get_replica_health(key) do
           {:ok, health} ->
@@ -468,7 +487,7 @@ defmodule Grapple.CLI.Shell do
             IO.puts("  Health ratio: #{Float.round(health.health_ratio * 100, 1)}%")
             IO.puts("  Primary healthy: #{health.primary_healthy}")
             IO.puts("  Conflicts: #{health.conflicts}")
-          
+
           {:error, reason} ->
             IO.puts("❌ Status check failed: #{inspect(reason)}")
         end
@@ -477,17 +496,17 @@ defmodule Grapple.CLI.Shell do
 
   defp handle_command("REPLICA RESOLVE " <> key) do
     key = String.trim(key)
-    
+
     case Process.whereis(ReplicationEngine) do
       nil ->
         IO.puts("Replication engine not available")
-      
+
       _pid ->
         case ReplicationEngine.resolve_conflicts(key) do
           {:ok, resolved_data} ->
             IO.puts("✅ Conflicts resolved for #{key}")
             IO.puts("   Resolved data: #{inspect(resolved_data)}")
-          
+
           {:error, reason} ->
             IO.puts("❌ Conflict resolution failed: #{inspect(reason)}")
         end
@@ -498,13 +517,17 @@ defmodule Grapple.CLI.Shell do
     case Process.whereis(ReplicationEngine) do
       nil ->
         IO.puts("Replication engine not available")
-      
+
       _pid ->
         stats = ReplicationEngine.get_replication_stats()
         IO.puts("Replication Statistics:")
         IO.puts("  Total replica sets: #{stats.total_replica_sets}")
         IO.puts("  Consistency level: #{Float.round(stats.consistency_level * 100, 1)}%")
-        IO.puts("  Replication efficiency: #{Float.round(stats.replication_efficiency * 100, 1)}%")
+
+        IO.puts(
+          "  Replication efficiency: #{Float.round(stats.replication_efficiency * 100, 1)}%"
+        )
+
         IO.puts("  Conflict rate: #{Float.round(stats.conflict_rate * 100, 2)}%")
         IO.puts("  Recent failover events: #{stats.failover_events}")
     end
@@ -515,15 +538,17 @@ defmodule Grapple.CLI.Shell do
       [prop, value] ->
         prop_atom = String.to_atom(prop)
         {:ok, nodes} = EtsGraphStore.find_nodes_by_property(prop_atom, value)
+
         if length(nodes) > 0 do
           IO.puts("Found #{length(nodes)} nodes:")
+
           Enum.each(nodes, fn node ->
             IO.puts("  Node #{node.id}: #{inspect(node.properties)}")
           end)
         else
           IO.puts("No nodes found with #{prop}: #{value}")
         end
-      
+
       _ ->
         IO.puts("Usage: FIND NODES <property> <value>")
     end
@@ -532,10 +557,13 @@ defmodule Grapple.CLI.Shell do
   defp handle_command("FIND EDGES " <> label) do
     label = String.trim(label)
     {:ok, edges} = EtsGraphStore.find_edges_by_label(label)
+
     if length(edges) > 0 do
       IO.puts("Found #{length(edges)} edges with label '#{label}':")
+
       Enum.each(edges, fn edge ->
         IO.puts("  Edge #{edge.id}: (#{edge.from})-[#{edge.label}]->(#{edge.to})")
+
         if map_size(edge.properties) > 0 do
           IO.puts("    Properties: #{inspect(edge.properties)}")
         end
@@ -548,7 +576,7 @@ defmodule Grapple.CLI.Shell do
   defp handle_command(unknown) do
     suggestions = Autocomplete.suggest_similar_commands(unknown)
     IO.puts("Unknown command: #{unknown}")
-    
+
     if length(suggestions) > 0 do
       IO.puts("Did you mean:")
       IO.puts(Autocomplete.format_suggestions(suggestions))
@@ -556,59 +584,64 @@ defmodule Grapple.CLI.Shell do
       IO.puts("Type 'help' for available commands")
     end
   end
-  
+
   defp handle_command_with_validation(input) do
     case Autocomplete.validate_command_syntax(input) do
       {:valid, command} ->
         handle_command(command)
-        
+
       {:invalid, message} ->
         IO.puts("Syntax error: #{message}")
     end
   end
-  
+
   defp get_input_with_completion(prompt) do
     case IO.gets(prompt) do
-      :eof -> :eof
-      {:error, reason} -> {:error, reason}
+      :eof ->
+        :eof
+
+      {:error, reason} ->
+        {:error, reason}
+
       input when is_binary(input) ->
         trimmed = String.trim(input)
-        
+
         cond do
           trimmed == "?" ->
             IO.puts("\n" <> Autocomplete.format_suggestions(Autocomplete.get_completions("")))
             get_input_with_completion(prompt)
-            
+
           String.ends_with?(trimmed, "?") ->
             partial = String.trim_trailing(trimmed, "?")
             completions = Autocomplete.get_completions(partial)
             IO.puts("\n" <> Autocomplete.format_suggestions(completions))
             get_input_with_completion(prompt)
-            
+
           String.ends_with?(trimmed, "\t") || String.contains?(trimmed, "\t") ->
             partial = String.replace(trimmed, "\t", "")
             handle_tab_completion(partial, prompt)
-            
+
           true ->
             trimmed
         end
     end
   end
-  
+
   defp handle_tab_completion(partial, prompt) do
     case Autocomplete.handle_tab_completion(partial) do
       {:completed, completion} ->
         IO.write("\r#{prompt}#{completion} ")
+
         case IO.gets("") do
           :eof -> :eof
           {:error, reason} -> {:error, reason}
           additional_input -> completion <> " " <> String.trim(additional_input)
         end
-        
+
       {:partial, common_prefix} ->
         IO.write("\r#{prompt}#{common_prefix}")
         get_input_with_completion("")
-        
+
       {:no_completion, _input} ->
         get_input_with_completion(prompt)
     end
@@ -620,14 +653,15 @@ defmodule Grapple.CLI.Shell do
         case Executor.traverse(node_id, :out, depth) do
           {:ok, nodes} ->
             IO.puts("Traversal results (depth #{depth}):")
+
             Enum.each(nodes, fn node ->
               IO.puts("  Node #{node.id}: #{inspect(node.properties)}")
             end)
-          
+
           {:error, reason} ->
             IO.puts("Traversal error: #{reason}")
         end
-      
+
       _ ->
         IO.puts("Invalid node ID: #{node_id_str}")
     end
@@ -641,11 +675,11 @@ defmodule Grapple.CLI.Shell do
             visualization = AsciiRenderer.render_subgraph(node_id, depth)
             IO.puts("Graph visualization (depth #{depth}):")
             IO.puts(visualization)
-          
+
           {:error, :not_found} ->
             IO.puts("Node #{node_id} not found")
         end
-      
+
       _ ->
         IO.puts("Invalid node ID: #{node_id_str}")
     end
@@ -655,7 +689,8 @@ defmodule Grapple.CLI.Shell do
     # Simple property parser for {key: value, key2: value2} format
     try do
       # Remove braces and parse as keyword list
-      cleaned = props_str |> String.trim() |> String.trim_leading("{") |> String.trim_trailing("}")
+      cleaned =
+        props_str |> String.trim() |> String.trim_leading("{") |> String.trim_trailing("}")
 
       if cleaned == "" do
         {:ok, %{}}

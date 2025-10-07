@@ -117,7 +117,9 @@ defmodule Grapple.ValidationTest do
     end
 
     test "rejects labels with invalid characters" do
-      assert {:error, :invalid_label, message, _opts} = Validation.validate_edge_label("label with spaces")
+      assert {:error, :invalid_label, message, _opts} =
+               Validation.validate_edge_label("label with spaces")
+
       assert message =~ "invalid characters"
     end
 
@@ -184,8 +186,10 @@ defmodule Grapple.ValidationTest do
   describe "validate_query_syntax/1" do
     test "accepts valid query commands" do
       assert {:ok, "MATCH (n)"} = Validation.validate_query_syntax("MATCH (n)")
+
       assert {:ok, "CREATE NODE {name: \"Alice\"}"} =
                Validation.validate_query_syntax("CREATE NODE {name: \"Alice\"}")
+
       assert {:ok, "FIND NODES name Alice"} =
                Validation.validate_query_syntax("FIND NODES name Alice")
     end

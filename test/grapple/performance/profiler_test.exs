@@ -51,9 +51,10 @@ defmodule Grapple.Performance.ProfilerTest do
 
   describe "profile_operation/2" do
     test "profiles an operation and returns metrics" do
-      profile = Profiler.profile_operation(:test_create_node, fn ->
-        Grapple.create_node(%{name: "Test"})
-      end)
+      profile =
+        Profiler.profile_operation(:test_create_node, fn ->
+          Grapple.create_node(%{name: "Test"})
+        end)
 
       assert Map.has_key?(profile, :operation)
       assert Map.has_key?(profile, :duration_us)
@@ -66,17 +67,19 @@ defmodule Grapple.Performance.ProfilerTest do
     end
 
     test "captures successful operation results" do
-      profile = Profiler.profile_operation(:test_success, fn ->
-        {:ok, 42}
-      end)
+      profile =
+        Profiler.profile_operation(:test_success, fn ->
+          {:ok, 42}
+        end)
 
       assert profile.result == {:ok, {:ok, 42}}
     end
 
     test "captures operation errors" do
-      profile = Profiler.profile_operation(:test_error, fn ->
-        raise "test error"
-      end)
+      profile =
+        Profiler.profile_operation(:test_error, fn ->
+          raise "test error"
+        end)
 
       assert match?({:error, _}, profile.result)
     end

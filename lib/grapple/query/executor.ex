@@ -12,16 +12,17 @@ defmodule Grapple.Query.Executor do
     case EtsOptimizer.execute_optimized_query(query) do
       {:ok, result} ->
         {:ok, result}
-      
+
       {:error, :unsupported_pattern} ->
         # Fallback to standard execution
         case parse_query(query) do
           {:ok, parsed_query} ->
             execute_parsed_query(parsed_query)
+
           {:error, reason} ->
             {:error, {:parse_error, reason}}
         end
-      
+
       error ->
         error
     end
@@ -38,7 +39,8 @@ defmodule Grapple.Query.Executor do
   def find_path(from_node, to_node, max_depth \\ 10) do
     # Use optimized pathfinding
     case EtsOptimizer.find_shortest_paths(from_node, to_node, max_depth) do
-      {:ok, [path | _]} -> {:ok, path}  # Return first path found
+      # Return first path found
+      {:ok, [path | _]} -> {:ok, path}
       {:ok, []} -> {:error, :path_not_found}
       error -> error
     end
@@ -49,10 +51,10 @@ defmodule Grapple.Query.Executor do
     cond do
       String.starts_with?(query_string, "MATCH") ->
         parse_match_query(query_string)
-      
+
       String.starts_with?(query_string, "CREATE") ->
         parse_create_query(query_string)
-      
+
       true ->
         {:error, :unsupported_query}
     end
@@ -71,8 +73,8 @@ defmodule Grapple.Query.Executor do
   defp execute_parsed_query(%{type: :match, pattern: pattern}) do
     # Execute match query across distributed nodes
     nodes = NodeManager.get_cluster_info() |> Map.get(:nodes)
-    
-    results = 
+
+    results =
       nodes
       |> Enum.map(fn node ->
         :rpc.call(node, __MODULE__, :execute_local_match, [pattern])
@@ -81,7 +83,7 @@ defmodule Grapple.Query.Executor do
         {:ok, matches} -> matches
         _ -> []
       end)
-    
+
     {:ok, results}
   end
 

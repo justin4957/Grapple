@@ -9,7 +9,7 @@ defmodule Grapple.Distributed.Discovery do
 
   def start_discovery(opts \\ []) do
     discovery_methods = opts[:methods] || [:erlang_nodes, :broadcast]
-    
+
     # Start discovery processes for each method
     Enum.each(discovery_methods, fn method ->
       spawn_discovery_process(method, opts)
@@ -23,15 +23,16 @@ defmodule Grapple.Distributed.Discovery do
       discover_via_broadcast(),
       discover_via_environment()
     ]
-    
-    peers = discoveries
-    |> Enum.flat_map(fn
-      {:ok, nodes} -> nodes
-      {:error, _} -> []
-    end)
-    |> Enum.uniq()
-    |> Enum.reject(&(&1 == node()))
-    
+
+    peers =
+      discoveries
+      |> Enum.flat_map(fn
+        {:ok, nodes} -> nodes
+        {:error, _} -> []
+      end)
+      |> Enum.uniq()
+      |> Enum.reject(&(&1 == node()))
+
     {:ok, peers}
   end
 
@@ -50,14 +51,14 @@ defmodule Grapple.Distributed.Discovery do
           # Send discovery broadcast
           broadcast_msg = create_discovery_message()
           :gen_udp.send(socket, {255, 255, 255, 255}, @discovery_port, broadcast_msg)
-          
+
           # Listen for responses
           peers = collect_broadcast_responses(socket, 2000)
           {:ok, peers}
         after
           :gen_udp.close(socket)
         end
-      
+
       {:error, reason} ->
         {:error, {:broadcast_failed, reason}}
     end
@@ -66,23 +67,24 @@ defmodule Grapple.Distributed.Discovery do
   # Environment-based discovery (for containers/k8s)
   defp discover_via_environment do
     case System.get_env("GRAPPLE_CLUSTER_NODES") do
-      nil -> 
+      nil ->
         {:ok, []}
-      
+
       nodes_string ->
-        nodes = nodes_string
-        |> String.split(",")
-        |> Enum.map(&String.trim/1)
-        |> Enum.map(&String.to_atom/1)
-        |> Enum.filter(&is_atom/1)
-        
+        nodes =
+          nodes_string
+          |> String.split(",")
+          |> Enum.map(&String.trim/1)
+          |> Enum.map(&String.to_atom/1)
+          |> Enum.filter(&is_atom/1)
+
         {:ok, nodes}
     end
   end
 
   defp spawn_discovery_process(:erlang_nodes, _opts) do
     # Minimal process - just log connections
-    spawn(fn -> 
+    spawn(fn ->
       :net_kernel.monitor_nodes(true)
       monitor_node_changes()
     end)
@@ -90,12 +92,14 @@ defmodule Grapple.Distributed.Discovery do
 
   defp spawn_discovery_process(:broadcast, _opts) do
     # Start UDP listener for discovery broadcasts
-    spawn(fn -> 
+    spawn(fn ->
       case :gen_udp.open(@discovery_port, [:binary, {:active, true}]) do
         {:ok, socket} ->
           listen_for_discoveries(socket)
+
         {:error, _} ->
-          :ok  # Fail silently if can't bind - another instance might be running
+          # Fail silently if can't bind - another instance might be running
+          :ok
       end
     end)
   end
@@ -108,8 +112,9 @@ defmodule Grapple.Distributed.Discovery do
         if is_grapple_node?(node) do
           attempt_cluster_join(node)
         end
+
         monitor_node_changes()
-      
+
       {:nodedown, _node} ->
         # Just continue monitoring
         monitor_node_changes()
@@ -128,11 +133,12 @@ defmodule Grapple.Distributed.Discovery do
           {:ok, %{node_name: remote_node}} ->
             # Attempt to connect to discovered node
             attempt_cluster_join(remote_node)
-          
+
           {:error, _} ->
-            :ok  # Ignore malformed messages
+            # Ignore malformed messages
+            :ok
         end
-        
+
         listen_for_discoveries(socket)
     after
       30_000 ->
@@ -150,13 +156,14 @@ defmodule Grapple.Distributed.Discovery do
       timestamp: System.system_time(:second),
       capabilities: get_basic_capabilities()
     }
-    
+
     :erlang.term_to_binary(discovery_info)
   end
 
   defp decode_discovery_message(binary_data) do
     try do
       data = :erlang.binary_to_term(binary_data)
+
       if is_map(data) and Map.has_key?(data, :node_name) do
         {:ok, data}
       else
@@ -174,7 +181,7 @@ defmodule Grapple.Distributed.Discovery do
 
   defp collect_responses(socket, start_time, timeout, acc) do
     elapsed = System.monotonic_time(:millisecond) - start_time
-    
+
     if elapsed >= timeout do
       acc
     else
@@ -183,14 +190,14 @@ defmodule Grapple.Distributed.Discovery do
           case decode_discovery_message(data) do
             {:ok, %{node_name: node_name}} ->
               collect_responses(socket, start_time, timeout, [node_name | acc])
-            
+
             {:error, _} ->
               collect_responses(socket, start_time, timeout, acc)
           end
-        
+
         {:error, :timeout} ->
           acc
-        
+
         {:error, _} ->
           acc
       end
@@ -208,7 +215,7 @@ defmodule Grapple.Distributed.Discovery do
     case Grapple.Distributed.ClusterManager.join_cluster(remote_node) do
       {:ok, :joined} ->
         :ok
-      
+
       {:error, _reason} ->
         # Silently fail - discovery is best effort
         :ok

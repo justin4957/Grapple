@@ -15,14 +15,14 @@ defmodule Grapple.Storage.GraphStore do
   def init(_opts) do
     nodes_table = :dets.open_file(:nodes, [{:type, :set}])
     edges_table = :dets.open_file(:edges, [{:type, :bag}])
-    
+
     state = %__MODULE__{
       nodes_table: nodes_table,
       edges_table: edges_table,
       node_id_counter: get_max_id(:nodes) + 1,
       edge_id_counter: get_max_id(:edges) + 1
     }
-    
+
     {:ok, state}
   end
 
@@ -45,9 +45,9 @@ defmodule Grapple.Storage.GraphStore do
   def handle_call({:create_node, properties}, _from, state) do
     node_id = state.node_id_counter
     node = %{id: node_id, properties: properties}
-    
+
     :dets.insert(elem(state.nodes_table, 1), {node_id, node})
-    
+
     new_state = %{state | node_id_counter: node_id + 1}
     {:reply, {:ok, node_id}, new_state}
   end
@@ -55,9 +55,9 @@ defmodule Grapple.Storage.GraphStore do
   def handle_call({:create_edge, from_node, to_node, label, properties}, _from, state) do
     edge_id = state.edge_id_counter
     edge = %{id: edge_id, from: from_node, to: to_node, label: label, properties: properties}
-    
+
     :dets.insert(elem(state.edges_table, 1), {from_node, edge})
-    
+
     new_state = %{state | edge_id_counter: edge_id + 1}
     {:reply, {:ok, edge_id}, new_state}
   end
@@ -80,7 +80,9 @@ defmodule Grapple.Storage.GraphStore do
         max_id = :dets.foldl(fn {id, _}, acc -> max(id, acc) end, 0, ref)
         :dets.close(ref)
         max_id
-      {:error, _} -> 0
+
+      {:error, _} ->
+        0
     end
   end
 end
