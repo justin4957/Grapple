@@ -85,9 +85,6 @@ defmodule Grapple.Distributed.ClusterManagerTest do
 
   describe "distributed mode detection" do
     test "detects distributed mode based on application config" do
-      # Get current distributed mode setting
-      distributed_mode = Application.get_env(:grapple, :distributed, false)
-
       info = ClusterManager.get_cluster_info()
 
       # Should have valid cluster info regardless of mode

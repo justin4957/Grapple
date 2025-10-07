@@ -155,11 +155,11 @@ defmodule Grapple.Storage.EtsGraphStoreTest do
     end
 
     test "property index is updated on node creation" do
-      {:ok, node1} = EtsGraphStore.create_node(%{category: "test"})
+      {:ok, _node1} = EtsGraphStore.create_node(%{category: "test"})
       {:ok, nodes1} = EtsGraphStore.find_nodes_by_property(:category, "test")
       assert length(nodes1) == 1
 
-      {:ok, node2} = EtsGraphStore.create_node(%{category: "test"})
+      {:ok, _node2} = EtsGraphStore.create_node(%{category: "test"})
       {:ok, nodes2} = EtsGraphStore.find_nodes_by_property(:category, "test")
       assert length(nodes2) == 2
     end

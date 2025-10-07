@@ -141,7 +141,7 @@ defmodule Grapple.Integration.GraphWorkflowTest do
           priority: "high"
         })
 
-      {:ok, project2} =
+      {:ok, _project2} =
         Grapple.create_node(%{
           type: "project",
           name: "Project Beta",
