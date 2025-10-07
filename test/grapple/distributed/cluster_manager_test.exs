@@ -3,11 +3,20 @@ defmodule Grapple.Distributed.ClusterManagerTest do
   alias Grapple.Distributed.ClusterManager
 
   setup do
-    # Start the cluster manager if not already started
-    case ClusterManager.start_link([]) do
-      {:ok, pid} -> {:ok, manager: pid}
-      {:error, {:already_started, pid}} -> {:ok, manager: pid}
-    end
+    # Ensure the cluster manager is started and ready
+    pid =
+      case ClusterManager.start_link([]) do
+        {:ok, pid} -> pid
+        {:error, {:already_started, pid}} -> pid
+      end
+
+    # Give the GenServer time to fully initialize
+    :timer.sleep(10)
+
+    # Verify it's alive
+    assert Process.alive?(pid)
+
+    {:ok, manager: pid}
   end
 
   describe "start_link/1" do
@@ -67,6 +76,10 @@ defmodule Grapple.Distributed.ClusterManagerTest do
 
   describe "distributed mode detection" do
     test "detects distributed mode based on application config" do
+      # Ensure the GenServer is responsive before calling
+      assert Process.whereis(ClusterManager) != nil
+      assert Process.alive?(Process.whereis(ClusterManager))
+
       info = ClusterManager.get_cluster_info()
 
       # Should have valid cluster info regardless of mode

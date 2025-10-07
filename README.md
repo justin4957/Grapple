@@ -79,11 +79,24 @@ end
 
 Comprehensive documentation is available with guides of varying completeness:
 
+### Getting Started
 - [Quick Start Guide](guides/tutorials/quick-start.md) - Operational in approximately 5 minutes
 - [Complete User Guide](GUIDE.md) - Comprehensive usage documentation (completeness not verified)
+- [FAQ](FAQ.md) - Frequently asked questions and common scenarios
+
+### Advanced Topics
 - [Distributed Mode Guide](README_DISTRIBUTED.md) - Advanced clustering features (advancement relative)
 - [Architecture Overview](guides/advanced/architecture.md) - System design and internal mechanisms
 - [Performance Guide](guides/advanced/performance.md) - Optimization and tuning recommendations
 - [**Performance Monitoring & Benchmarking**](PERFORMANCE.md) - Comprehensive performance testing and monitoring tools
+
+### Developer Resources
+- [Contributing Guide](CONTRIBUTING.md) - Guidelines for contributing to Grapple
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and their resolutions
+- [Development Setup Script](scripts/dev-setup.sh) - Automated environment configuration
+
+### Examples
+- [Social Network Example](guides/examples/social-network.md) - Building social graphs
+- [Recommendation Engine Example](guides/examples/recommendation-engine.md) - Collaborative filtering and product recommendations
 
 Documentation may also be generated using [ExDoc](https://github.com/elixir-lang/ex_doc) and published on [HexDocs](https://hexdocs.pm). Upon successful publication, documentation will be accessible at <https://hexdocs.pm/grapple> (availability subject to external factors).
