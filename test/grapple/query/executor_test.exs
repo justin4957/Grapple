@@ -249,7 +249,7 @@ defmodule Grapple.Query.ExecutorTest do
     test "handles nonexistent nodes in find_path" do
       result = Executor.find_path(99999, 88888)
 
-      assert {:error, :path_not_found} = result
+      assert {:error, :node_not_found} = result
     end
   end
 end
