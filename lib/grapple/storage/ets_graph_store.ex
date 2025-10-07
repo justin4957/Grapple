@@ -231,10 +231,6 @@ defmodule Grapple.Storage.EtsGraphStore do
     end
   end
 
-  defp verify_node_exists(node_id) do
-    get_node(node_id)
-  end
-
   def handle_call({:delete_node, node_id}, _from, state) do
     case get_node(node_id) do
       {:ok, node} ->
@@ -270,6 +266,9 @@ defmodule Grapple.Storage.EtsGraphStore do
   end
 
   # Private functions
+  defp verify_node_exists(node_id) do
+    get_node(node_id)
+  end
   defp create_table(name, opts) do
     case :ets.info(name) do
       :undefined -> :ets.new(name, opts)

@@ -6,7 +6,6 @@ defmodule Grapple.Distributed.ClusterManager do
 
   use GenServer
   alias Grapple.Distributed.Schema
-  alias Grapple.Error
 
   require Logger
 
