@@ -52,9 +52,11 @@ defmodule Grapple.CLI.Shell do
 
   defp handle_command("help") do
     IO.puts("""
-    Available commands:
+    #{IO.ANSI.cyan()}╔════════════════════════════════════════════════════════════════╗
+    ║           Grapple Graph Database Shell - Help                  ║
+    ╚════════════════════════════════════════════════════════════════╝#{IO.ANSI.reset()}
 
-    Graph Operations:
+    #{IO.ANSI.green()}Graph Operations:#{IO.ANSI.reset()}
       CREATE NODE {prop: value}          - Create a new node
       CREATE EDGE (from)-[label]->(to)   - Create a new edge
       MATCH (n)-[r]->(m)                 - Query graph patterns
@@ -65,39 +67,51 @@ defmodule Grapple.CLI.Shell do
       FIND NODES <prop> <value>          - Find nodes by property
       FIND EDGES <label>                 - Find edges by label
 
-    Distributed Operations:
+    #{IO.ANSI.green()}Distributed Operations:#{IO.ANSI.reset()}
       CLUSTER STATUS                     - Show distributed cluster status
       CLUSTER JOIN <node>                - Join another cluster node
       CLUSTER HEALTH                     - Show cluster health information
       CLUSTER SHUTDOWN [reason]          - Initiate graceful cluster shutdown
       CLUSTER STARTUP [mode]             - Coordinate cluster startup
 
-    Lifecycle Management:
-      LIFECYCLE CLASSIFY <key> <type>    - Classify data lifecycle (ephemeral|computational|session|persistent)
+    #{IO.ANSI.green()}Lifecycle Management:#{IO.ANSI.reset()}
+      LIFECYCLE CLASSIFY <key> <type>    - Classify data (ephemeral|computational|session|persistent)
       LIFECYCLE STATS                    - Show lifecycle management statistics
-      LIFECYCLE MIGRATE <key> <tier>     - Migrate data to storage tier (ets|mnesia|dets)
+      LIFECYCLE MIGRATE <key> <tier>     - Migrate data to tier (ets|mnesia|dets)
       LIFECYCLE POLICIES                 - Show active persistence policies
       LIFECYCLE OPTIMIZE                 - Trigger storage optimization
 
-    Replication Management:
-      REPLICA CREATE <key> <policy>      - Create replica set with policy (minimal|balanced|maximum|adaptive)
+    #{IO.ANSI.green()}Replication Management:#{IO.ANSI.reset()}
+      REPLICA CREATE <key> <policy>      - Create replica (minimal|balanced|maximum|adaptive)
       REPLICA STATUS <key>               - Show replica health for data key
       REPLICA RESOLVE <key>              - Resolve conflicts for data key
       REPLICA STATS                      - Show replication statistics
 
-    Cluster Operations:
+    #{IO.ANSI.green()}Cluster Operations:#{IO.ANSI.reset()}
       JOIN <node@host>                   - Join cluster
       CLUSTER INFO                       - Show cluster status
       NODES                              - List cluster nodes
 
-    System:
+    #{IO.ANSI.green()}System:#{IO.ANSI.reset()}
       help                               - Show this help
       quit/exit                          - Exit shell
 
-    Autocomplete Features:
+    #{IO.ANSI.yellow()}Autocomplete Features:#{IO.ANSI.reset()}
       TAB                                - Complete current command
       ?                                  - Show all available commands
       <partial>?                         - Show commands matching partial input
+
+    #{IO.ANSI.blue()}📚 Documentation:#{IO.ANSI.reset()}
+      • User Guide:        GUIDE.md
+      • Troubleshooting:   TROUBLESHOOTING.md
+      • FAQ:               FAQ.md
+      • Contributing:      CONTRIBUTING.md
+
+    #{IO.ANSI.blue()}💡 Quick Examples:#{IO.ANSI.reset()}
+      CREATE NODE {name: "Alice", age: 30}
+      CREATE EDGE (1)-[friends]->(2)
+      FIND NODES name Alice
+      VISUALIZE 1 2
     """)
   end
 
