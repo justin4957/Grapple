@@ -116,7 +116,8 @@ defmodule Grapple.Storage.EtsGraphStoreTest do
       {:ok, edges} = EtsGraphStore.get_edges_from(node1)
 
       assert length(edges) == 2
-      assert Enum.all?(edges, fn edge -> edge.from == node1 end)
+      # Edges are returned as {edge_id, edge_data} tuples
+      assert Enum.all?(edges, fn {_id, edge_data} -> edge_data.from == node1 end)
     end
 
     test "get_edges_to/1 returns edges to node" do
@@ -130,7 +131,8 @@ defmodule Grapple.Storage.EtsGraphStoreTest do
       {:ok, edges} = EtsGraphStore.get_edges_to(node1)
 
       assert length(edges) == 2
-      assert Enum.all?(edges, fn edge -> edge.to == node1 end)
+      # Edges are returned as {edge_id, edge_data} tuples
+      assert Enum.all?(edges, fn {_id, edge_data} -> edge_data.to == node1 end)
     end
   end
 
