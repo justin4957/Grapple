@@ -280,8 +280,8 @@ defmodule Grapple do
 
       iex> {:ok, alice} = Grapple.create_node(%{name: "Alice"})
       iex> {:ok, bob} = Grapple.create_node(%{name: "Bob"})
-      iex> {:ok, edge1} = Grapple.create_edge(alice, bob, "knows", %{since: "2020"})
-      iex> {:ok, edge2} = Grapple.create_edge(bob, alice, "knows", %{since: "2020"})
+      iex> {:ok, _edge1} = Grapple.create_edge(alice, bob, "knows", %{since: "2020"})
+      iex> {:ok, _edge2} = Grapple.create_edge(bob, alice, "knows", %{since: "2020"})
       iex> {:ok, edges} = Grapple.find_edges_by_label("knows")
       iex> length(edges)
       2

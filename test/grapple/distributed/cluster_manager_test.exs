@@ -64,22 +64,14 @@ defmodule Grapple.Distributed.ClusterManagerTest do
     end
   end
 
-  describe "get_cluster_status/0" do
-    test "returns status map" do
-      status = ClusterManager.get_cluster_status()
+  describe "get_cluster_info/0" do
+    test "returns complete cluster information" do
+      info = ClusterManager.get_cluster_info()
 
-      assert is_map(status)
-      assert Map.has_key?(status, :healthy)
-      assert Map.has_key?(status, :node_count)
-      assert Map.has_key?(status, :connected_nodes)
-    end
-
-    test "reports healthy status for single node" do
-      status = ClusterManager.get_cluster_status()
-
-      assert status.healthy == true
-      assert status.node_count >= 1
-      assert is_list(status.connected_nodes)
+      assert is_map(info)
+      assert Map.has_key?(info, :local_node)
+      assert Map.has_key?(info, :nodes)
+      assert Map.has_key?(info, :partitions)
     end
   end
 
