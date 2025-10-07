@@ -3,11 +3,19 @@ defmodule Grapple.Distributed.HealthMonitorTest do
   alias Grapple.Distributed.HealthMonitor
 
   setup do
-    # Start the health monitor if not already started
-    case HealthMonitor.start_link([]) do
-      {:ok, pid} -> {:ok, monitor: pid}
-      {:error, {:already_started, pid}} -> {:ok, monitor: pid}
+    # Ensure the health monitor is started and ready
+    pid = case HealthMonitor.start_link([]) do
+      {:ok, pid} -> pid
+      {:error, {:already_started, pid}} -> pid
     end
+
+    # Give the GenServer time to fully initialize
+    :timer.sleep(10)
+
+    # Verify it's alive
+    assert Process.alive?(pid)
+
+    {:ok, monitor: pid}
   end
 
   describe "start_link/1" do
@@ -27,6 +35,10 @@ defmodule Grapple.Distributed.HealthMonitorTest do
     end
 
     test "returns healthy status for local node" do
+      # Ensure the GenServer is responsive before calling
+      assert Process.whereis(HealthMonitor) != nil
+      assert Process.alive?(Process.whereis(HealthMonitor))
+
       health = HealthMonitor.get_cluster_health()
 
       assert health.overall_status in [:unknown, :healthy, :degraded, :critical]
