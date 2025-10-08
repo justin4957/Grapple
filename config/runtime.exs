@@ -12,8 +12,7 @@ if config_env() == :dev do
     System.get_env("SECRET_KEY_BASE") ||
       Base.encode64(:crypto.strong_rand_bytes(48))
 
-  config :grapple, GrappleWeb.Endpoint,
-    secret_key_base: secret_key_base
+  config :grapple, GrappleWeb.Endpoint, secret_key_base: secret_key_base
 end
 
 if config_env() == :prod do

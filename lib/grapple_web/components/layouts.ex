@@ -5,5 +5,5 @@ defmodule GrappleWeb.Layouts do
 
   use GrappleWeb, :html
 
-  embed_templates "layouts/*"
+  embed_templates("layouts/*")
 end
