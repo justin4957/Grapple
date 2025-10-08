@@ -287,14 +287,51 @@ open doc/index.html
 - **GitHub Discussions**: Questions, ideas, and general discussion
 - **Pull Requests**: Code contributions and reviews
 
+## Areas to Contribute
+
+We welcome contributions in many areas:
+
+### Core Features
+- **Storage Layer**: ETS optimizations, indexing improvements
+- **Query Engine**: Query optimization, new query language features
+- **Analytics**: New graph algorithms, performance improvements
+- **Distributed Systems**: Replication strategies, cluster management
+
+### Analytics Algorithms
+Our analytics engine (see `lib/grapple/analytics/`) uses established algorithms:
+- PageRank: Power iteration method with configurable parameters
+- Betweenness: Brandes' algorithm for efficient computation
+- Connected Components: Union-Find with path compression
+- Triangle Counting: For clustering coefficient
+
+Contributions welcome:
+- Eigenvector centrality
+- Louvain algorithm for community detection
+- k-core decomposition
+- Shortest path variants (k-shortest, all-shortest)
+
+### Documentation & Examples
+- New use case examples
+- Performance benchmarks
+- Tutorial improvements
+- API documentation
+
+### Testing
+- Property-based tests for graph invariants
+- Stress tests for distributed features
+- Performance regression tests
+- Integration test scenarios
+
 ## Additional Resources
 
 - [README.md](README.md) - Project overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Detailed architecture guide
 - [GUIDE.md](GUIDE.md) - Complete user guide
 - [TESTING.md](TESTING.md) - Testing infrastructure guide
 - [PERFORMANCE.md](PERFORMANCE.md) - Performance monitoring guide
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
 - [Architecture Overview](guides/advanced/architecture.md) - System design
+- [Graph Analytics Guide](guides/examples/graph-analytics.md) - Analytics algorithms and usage
 
 ## License
 
