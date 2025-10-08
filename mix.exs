@@ -16,14 +16,16 @@ defmodule Grapple.MixProject do
         "coveralls.post": :test,
         "coveralls.html": :test,
         "coveralls.json": :test
-      ]
+      ],
+      aliases: aliases(),
+      compilers: Mix.compilers()
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :mnesia],
+      extra_applications: [:logger, :mnesia, :crypto, :ssl],
       mod: {Grapple.Application, []}
     ]
   end
@@ -32,12 +34,43 @@ defmodule Grapple.MixProject do
   defp deps do
     [
       {:jason, "~> 1.4"},
+      {:phoenix, "~> 1.7.0"},
+      {:phoenix_live_view, "~> 0.20.0"},
+      {:phoenix_html, "~> 4.0"},
+      {:phoenix_live_reload, "~> 1.4", only: :dev},
+      {:plug_cowboy, "~> 2.6"},
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      {:gettext, "~> 0.20"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:phoenix_live_dashboard, "~> 0.8.0"},
+      {:heroicons,
+       github: "tailwindlabs/heroicons",
+       tag: "v2.1.1",
+       sparse: "optimized",
+       app: false,
+       compile: false,
+       depth: 1},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:benchee, "~> 1.3", only: :dev, runtime: false},
       {:benchee_html, "~> 1.0", only: :dev, runtime: false},
       {:stream_data, "~> 1.1", only: :test},
       {:excoveralls, "~> 0.18", only: :test},
       {:mox, "~> 1.1", only: :test}
+    ]
+  end
+
+  defp aliases do
+    [
+      setup: ["deps.get", "assets.setup", "assets.build"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["tailwind grapple", "esbuild grapple"],
+      "assets.deploy": [
+        "tailwind grapple --minify",
+        "esbuild grapple --minify",
+        "phx.digest"
+      ]
     ]
   end
 
@@ -112,6 +145,10 @@ defmodule Grapple.MixProject do
         ],
         Orchestration: [
           Grapple.Distributed.Orchestrator
+        ],
+        "Web Dashboard": [
+          GrappleWeb.Endpoint,
+          GrappleWeb.Router
         ]
       ]
     ]
