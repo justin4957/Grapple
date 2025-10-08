@@ -3,9 +3,9 @@ defmodule GrappleWeb.CoreComponents do
   Provides core UI components for the Grapple dashboard.
   """
   use Phoenix.Component
+  use Gettext, backend: GrappleWeb.Gettext
 
   alias Phoenix.LiveView.JS
-  import GrappleWeb.Gettext
 
   @doc """
   Renders a simple form.

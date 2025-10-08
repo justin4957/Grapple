@@ -3,11 +3,14 @@ defmodule GrappleWeb.GraphLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    {:ok, nodes} = Grapple.Storage.EtsGraphStore.list_nodes()
+    {:ok, edges} = Grapple.Storage.EtsGraphStore.list_edges()
+
     {:ok,
      socket
      |> assign(:page_title, "Graph Visualization")
-     |> assign(:nodes, Grapple.list_nodes())
-     |> assign(:edges, Grapple.list_edges())}
+     |> assign(:nodes, nodes)
+     |> assign(:edges, edges)}
   end
 
   @impl true

@@ -118,8 +118,8 @@ defmodule GrappleWeb.DashboardLive.Index do
 
   defp get_graph_stats do
     # Get all nodes and edges from the graph store
-    nodes = Grapple.list_nodes()
-    edges = Grapple.list_edges()
+    {:ok, nodes} = Grapple.Storage.EtsGraphStore.list_nodes()
+    {:ok, edges} = Grapple.Storage.EtsGraphStore.list_edges()
 
     total_nodes = length(nodes)
     total_edges = length(edges)

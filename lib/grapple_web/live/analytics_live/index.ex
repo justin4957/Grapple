@@ -135,7 +135,7 @@ defmodule GrappleWeb.AnalyticsLive.Index do
 
   defp execute_algorithm("clustering") do
     try do
-      Grapple.Analytics.Metrics.clustering_coefficient()
+      Grapple.Analytics.Community.clustering_coefficient()
     rescue
       _ -> %{error: "Failed to calculate clustering coefficient"}
     end
@@ -143,19 +143,17 @@ defmodule GrappleWeb.AnalyticsLive.Index do
 
   defp execute_algorithm("communities") do
     try do
-      Grapple.Analytics.Community.label_propagation()
+      Grapple.Analytics.Community.connected_components()
     rescue
       _ -> %{error: "Failed to detect communities"}
     end
   end
 
   defp execute_algorithm("shortest_path") do
-    nodes = Grapple.list_nodes()
-
-    case nodes do
-      [node1, node2 | _] ->
+    case Grapple.Storage.EtsGraphStore.list_nodes() do
+      {:ok, [node1, node2 | _]} ->
         try do
-          case Grapple.shortest_path(node1.id, node2.id) do
+          case Grapple.find_path(node1.id, node2.id) do
             {:ok, path} -> %{path: path, from: node1.id, to: node2.id}
             {:error, reason} -> %{error: reason}
           end

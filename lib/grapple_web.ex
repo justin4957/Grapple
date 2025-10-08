@@ -85,7 +85,7 @@ defmodule GrappleWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import GrappleWeb.CoreComponents
-      import GrappleWeb.Gettext
+      use Gettext, backend: GrappleWeb.Gettext
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
