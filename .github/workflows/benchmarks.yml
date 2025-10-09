@@ -1,0 +1,70 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:  # Manual triggering only - benchmarks can be expensive
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18'
+          otp-version: '27'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile project
+        run: mix compile
+
+      - name: Run core benchmarks
+        run: |
+          echo "Running node operations benchmark..."
+          mix run benchmarks/core/node_operations_bench.exs || true
+
+          echo "Running edge operations benchmark..."
+          mix run benchmarks/core/edge_operations_bench.exs || true
+
+          echo "Running traversal benchmark..."
+          mix run benchmarks/core/traversal_bench.exs || true
+
+      - name: Run scalability benchmarks
+        run: |
+          echo "Running graph size scaling benchmark..."
+          mix run benchmarks/scalability/graph_size_bench.exs || true
+
+          echo "Running concurrency benchmark..."
+          mix run benchmarks/scalability/concurrency_bench.exs || true
+
+          echo "Running memory benchmark..."
+          mix run benchmarks/scalability/memory_bench.exs || true
+
+      - name: Run analytics benchmarks
+        run: |
+          echo "Running analytics algorithms benchmark..."
+          mix run benchmarks/analytics/algorithms_bench.exs || true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmarks/results/
+          retention-days: 30
