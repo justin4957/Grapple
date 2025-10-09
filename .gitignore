@@ -21,3 +21,48 @@ grapple-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Node.js dependencies and artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+bun.lockb
+.bun-build/
+
+# Phoenix compiled assets (generated from assets/)
+/priv/static/
+
+# Elixir Language Server
+.elixir_ls/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.iml
+.settings/
+.project
+.classpath
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
