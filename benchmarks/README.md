@@ -213,20 +213,33 @@ Run the benchmarks to validate these targets on your hardware!
 
 ## CI Integration
 
-### GitHub Actions (Coming Soon)
+### GitHub Actions
 
-Benchmarks will be integrated into CI to:
-- Run on every PR
-- Detect performance regressions
-- Compare against main branch
-- Generate trend reports
+Benchmarks can be run manually via GitHub Actions:
 
-### Regression Detection
+1. **Navigate to Actions tab** in the GitHub repository
+2. **Select "Benchmarks" workflow** from the left sidebar
+3. **Click "Run workflow"** button to trigger benchmarks manually
 
-Fails if performance degrades by >10%:
+Benchmark results are uploaded as artifacts and available for download for 30 days.
+
+**Why manual?** Benchmarks are computationally expensive and take several minutes to complete. Running them on-demand allows developers to validate performance changes without slowing down the PR review process.
+
+### Local Benchmark Comparison
+
+To compare performance between branches locally:
 
 ```bash
-mix bench.compare main  # Compare current branch against main
+# Run benchmarks on main branch
+git checkout main
+mix bench > main_results.txt
+
+# Run benchmarks on your feature branch
+git checkout feature-branch
+mix bench > feature_results.txt
+
+# Compare results manually
+diff main_results.txt feature_results.txt
 ```
 
 ## Interpreting Benchmark Results

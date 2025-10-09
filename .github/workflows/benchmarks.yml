@@ -1,15 +1,7 @@
 name: Benchmarks
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'lib/**'
-      - 'benchmarks/**'
-      - 'mix.exs'
-  push:
-    branches: [main]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:  # Manual triggering only - benchmarks can be expensive
 
 jobs:
   benchmark:
@@ -76,40 +68,3 @@ jobs:
           name: benchmark-results
           path: benchmarks/results/
           retention-days: 30
-
-      - name: Comment PR with results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-
-            // Try to read benchmark results (they're in HTML, so just note they exist)
-            const resultsDir = 'benchmarks/results/';
-            let comment = '## 🔥 Benchmark Results\n\n';
-            comment += 'Benchmarks have been run successfully!\n\n';
-            comment += '### Generated Reports:\n';
-
-            try {
-              const files = fs.readdirSync(resultsDir);
-              const htmlFiles = files.filter(f => f.endsWith('.html'));
-
-              if (htmlFiles.length > 0) {
-                comment += htmlFiles.map(f => `- ${f}`).join('\n');
-                comment += '\n\n📊 Download the artifacts to view detailed HTML reports.';
-              } else {
-                comment += 'No HTML reports found.';
-              }
-            } catch (e) {
-              comment += 'Could not read results directory.';
-            }
-
-            comment += '\n\n✅ All benchmarks completed. Check the Actions artifacts for detailed results.';
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
