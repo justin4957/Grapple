@@ -5,14 +5,19 @@ Comprehensive performance benchmarking suite for Grapple Graph Database.
 ## Quick Start
 
 ```bash
-# Run all core benchmarks
+# Run all benchmarks (core + scalability + analytics)
 mix bench
+
+# Run specific suite
+mix bench --core
+mix bench --scalability
+mix bench --analytics
+
+# Run quick mode (faster, less thorough)
+mix bench --quick
 
 # Run specific benchmark
 mix run benchmarks/core/node_operations_bench.exs
-
-# Run with HTML output
-mix bench --html
 ```
 
 ## Benchmark Suites
@@ -36,17 +41,42 @@ Fundamental operations that form the basis of graph database interactions:
   - Shortest path finding
   - Different graph structures
 
-### Scalability (`benchmarks/scalability/`) - Coming Soon
+### Scalability (`benchmarks/scalability/`)
 
-- Graph size scaling (100 to 1M+ nodes)
-- Concurrent load testing
-- Memory profiling
+Tests performance at different scales and under concurrent load:
 
-### Analytics (`benchmarks/analytics/`) - Coming Soon
+- **`graph_size_bench.exs`** - Graph size scaling
+  - Tiny (100 nodes)
+  - Small (1K nodes)
+  - Medium (10K nodes)
+  - Large (50K nodes)
+  - Tests all operations at each scale
 
-- PageRank
-- Centrality algorithms
-- Community detection
+- **`concurrency_bench.exs`** - Concurrent load testing
+  - Read-heavy workloads (10, 100, 1K concurrent tasks)
+  - Write-heavy workloads
+  - Mixed workloads (90/10, 70/30 read/write)
+  - Concurrent traversals
+
+- **`memory_bench.exs`** - Memory profiling
+  - Per-node memory overhead
+  - Per-edge memory overhead
+  - Batch memory patterns
+  - Index memory consumption
+
+### Analytics (`benchmarks/analytics/`)
+
+Graph algorithm performance at various scales:
+
+- **`algorithms_bench.exs`** - Analytics algorithms
+  - PageRank (100, 1K, 5K nodes)
+  - Betweenness Centrality
+  - Closeness Centrality
+  - Degree Centrality
+  - Connected Components
+  - Clustering Coefficient
+  - Graph Summary
+  - Connectivity Metrics
 
 ## Running Benchmarks
 

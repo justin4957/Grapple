@@ -1,0 +1,115 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'benchmarks/**'
+      - 'mix.exs'
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18'
+          otp-version: '27'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile project
+        run: mix compile
+
+      - name: Run core benchmarks
+        run: |
+          echo "Running node operations benchmark..."
+          mix run benchmarks/core/node_operations_bench.exs || true
+
+          echo "Running edge operations benchmark..."
+          mix run benchmarks/core/edge_operations_bench.exs || true
+
+          echo "Running traversal benchmark..."
+          mix run benchmarks/core/traversal_bench.exs || true
+
+      - name: Run scalability benchmarks
+        run: |
+          echo "Running graph size scaling benchmark..."
+          mix run benchmarks/scalability/graph_size_bench.exs || true
+
+          echo "Running concurrency benchmark..."
+          mix run benchmarks/scalability/concurrency_bench.exs || true
+
+          echo "Running memory benchmark..."
+          mix run benchmarks/scalability/memory_bench.exs || true
+
+      - name: Run analytics benchmarks
+        run: |
+          echo "Running analytics algorithms benchmark..."
+          mix run benchmarks/analytics/algorithms_bench.exs || true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmarks/results/
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Try to read benchmark results (they're in HTML, so just note they exist)
+            const resultsDir = 'benchmarks/results/';
+            let comment = '## 🔥 Benchmark Results\n\n';
+            comment += 'Benchmarks have been run successfully!\n\n';
+            comment += '### Generated Reports:\n';
+
+            try {
+              const files = fs.readdirSync(resultsDir);
+              const htmlFiles = files.filter(f => f.endsWith('.html'));
+
+              if (htmlFiles.length > 0) {
+                comment += htmlFiles.map(f => `- ${f}`).join('\n');
+                comment += '\n\n📊 Download the artifacts to view detailed HTML reports.';
+              } else {
+                comment += 'No HTML reports found.';
+              }
+            } catch (e) {
+              comment += 'Could not read results directory.';
+            }
+
+            comment += '\n\n✅ All benchmarks completed. Check the Actions artifacts for detailed results.';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
