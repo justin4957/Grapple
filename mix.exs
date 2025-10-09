@@ -70,6 +70,11 @@ defmodule Grapple.MixProject do
         "tailwind grapple --minify",
         "esbuild grapple --minify",
         "phx.digest"
+      ],
+      bench: [
+        "run benchmarks/core/node_operations_bench.exs",
+        "run benchmarks/core/edge_operations_bench.exs",
+        "run benchmarks/core/traversal_bench.exs"
       ]
     ]
   end
