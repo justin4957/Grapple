@@ -21,7 +21,13 @@ defmodule Grapple.Application do
   defp base_children do
     [
       Grapple.Storage.EtsGraphStore,
-      Grapple.Cluster.NodeManager
+      Grapple.Cluster.NodeManager,
+      # Phoenix PubSub
+      {Phoenix.PubSub, name: Grapple.PubSub},
+      # Telemetry
+      GrappleWeb.Telemetry,
+      # Start the Endpoint (http/https)
+      GrappleWeb.Endpoint
     ]
   end
 
