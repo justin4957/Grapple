@@ -31,26 +31,28 @@ defmodule Mix.Tasks.Bench do
 
   @impl Mix.Task
   def run(args) do
-    {opts, _, _} = OptionParser.parse(args,
-      switches: [
-        core: :boolean,
-        scalability: :boolean,
-        analytics: :boolean,
-        quick: :boolean,
-        html_only: :boolean
-      ]
-    )
+    {opts, _, _} =
+      OptionParser.parse(args,
+        switches: [
+          core: :boolean,
+          scalability: :boolean,
+          analytics: :boolean,
+          quick: :boolean,
+          html_only: :boolean
+        ]
+      )
 
     # Ensure the application is started
     Mix.Task.run("app.start")
 
     # Determine which benchmarks to run
-    suites = cond do
-      opts[:core] -> [:core]
-      opts[:scalability] -> [:scalability]
-      opts[:analytics] -> [:analytics]
-      true -> [:core, :scalability, :analytics]
-    end
+    suites =
+      cond do
+        opts[:core] -> [:core]
+        opts[:scalability] -> [:scalability]
+        opts[:analytics] -> [:analytics]
+        true -> [:core, :scalability, :analytics]
+      end
 
     IO.puts("\n" <> IO.ANSI.cyan() <> "╔═══════════════════════════════════════╗")
     IO.puts("║    Grapple Benchmark Suite           ║")
@@ -58,7 +60,9 @@ defmodule Mix.Tasks.Bench do
     IO.puts("")
 
     if opts[:quick] do
-      IO.puts(IO.ANSI.yellow() <> "⚡ Quick mode enabled - reduced iterations\n" <> IO.ANSI.reset())
+      IO.puts(
+        IO.ANSI.yellow() <> "⚡ Quick mode enabled - reduced iterations\n" <> IO.ANSI.reset()
+      )
     end
 
     # Run each suite
