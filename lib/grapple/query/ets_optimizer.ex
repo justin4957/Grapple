@@ -111,24 +111,14 @@ defmodule Grapple.Query.EtsOptimizer do
   def get_neighbors_optimized(node_id, direction \\ :both) do
     case direction do
       :out ->
-        case EtsGraphStore.get_edges_from(node_id) do
-          {:ok, edges} ->
-            neighbors = edges |> Enum.map(fn {_from, edge} -> edge.to end) |> Enum.uniq()
-            {:ok, neighbors}
-
-          error ->
-            error
-        end
+        {:ok, edges} = EtsGraphStore.get_edges_from(node_id)
+        neighbors = edges |> Enum.map(fn {_from, edge} -> edge.to end) |> Enum.uniq()
+        {:ok, neighbors}
 
       :in ->
-        case EtsGraphStore.get_edges_to(node_id) do
-          {:ok, edges} ->
-            neighbors = edges |> Enum.map(fn {from, _edge} -> from end) |> Enum.uniq()
-            {:ok, neighbors}
-
-          error ->
-            error
-        end
+        {:ok, edges} = EtsGraphStore.get_edges_to(node_id)
+        neighbors = edges |> Enum.map(fn {from, _edge} -> from end) |> Enum.uniq()
+        {:ok, neighbors}
 
       :both ->
         {:ok, out_neighbors} = get_neighbors_optimized(node_id, :out)
@@ -311,15 +301,13 @@ defmodule Grapple.Query.EtsOptimizer do
     end
   end
 
-  defp cache_result(key, {:ok, result}) do
+  defp cache_result(_key, {:ok, result} = success) do
     try do
-      :ets.insert(@cache_table, {key, result, System.system_time(:second)})
+      :ets.insert(@cache_table, {_key, result, System.system_time(:second)})
     catch
       _ -> :ok
     end
 
-    {:ok, result}
+    success
   end
-
-  defp cache_result(_key, error), do: error
 end

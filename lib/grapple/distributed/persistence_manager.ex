@@ -692,12 +692,13 @@ defmodule Grapple.Distributed.PersistenceManager do
     end
   end
 
-  defp remove_data_from_tier(data_key, tier) do
-    case tier do
-      :ets -> remove_data_from_ets(data_key)
-      :mnesia -> remove_data_from_mnesia(data_key)
-      :dets -> remove_data_from_dets(data_key)
-    end
+  defp remove_data_from_tier(data_key, :ets) do
+    remove_data_from_ets(data_key)
+  end
+
+  defp remove_data_from_tier(_data_key, _other_tier) do
+    # Mnesia and DETS removal not yet implemented
+    :ok
   end
 
   defp update_tier_utilization_after_migration(_data_key, data, from_tier, to_tier, state) do
@@ -764,15 +765,11 @@ defmodule Grapple.Distributed.PersistenceManager do
   # Helper functions for tier operations
   defp data_exists_in_ets?(data_key) do
     try do
-      case String.to_integer(data_key) do
-        node_id when is_integer(node_id) ->
-          case EtsGraphStore.get_node(node_id) do
-            {:ok, _} -> true
-            _ -> false
-          end
+      node_id = String.to_integer(data_key)
 
-        _ ->
-          false
+      case EtsGraphStore.get_node(node_id) do
+        {:ok, _} -> true
+        _ -> false
       end
     catch
       _ -> false
@@ -781,15 +778,11 @@ defmodule Grapple.Distributed.PersistenceManager do
 
   defp get_data_from_ets(data_key) do
     try do
-      case String.to_integer(data_key) do
-        node_id when is_integer(node_id) ->
-          case EtsGraphStore.get_node(node_id) do
-            {:ok, node} -> {:ok, node, :ets}
-            error -> error
-          end
+      node_id = String.to_integer(data_key)
 
-        _ ->
-          {:error, :invalid_key}
+      case EtsGraphStore.get_node(node_id) do
+        {:ok, node} -> {:ok, node, :ets}
+        error -> error
       end
     catch
       _ -> {:error, :invalid_key}
@@ -805,10 +798,6 @@ defmodule Grapple.Distributed.PersistenceManager do
 
   # Placeholder
   defp remove_data_from_ets(_data_key), do: :ok
-  # Placeholder
-  defp remove_data_from_mnesia(_data_key), do: :ok
-  # Placeholder
-  defp remove_data_from_dets(_data_key), do: :ok
 
   # Placeholder
   defp get_access_frequency(_data_key), do: 10

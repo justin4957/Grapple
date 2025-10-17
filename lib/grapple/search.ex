@@ -192,24 +192,20 @@ defmodule Grapple.Search do
       {:ok, %{indexed: 150, errors: 0}}
   """
   def reindex_all(opts \\ []) do
-    case EtsGraphStore.list_nodes() do
-      {:ok, nodes} ->
-        results =
-          Enum.reduce(nodes, %{indexed: 0, errors: 0}, fn node, acc ->
-            case index_node(node.id, node.properties, opts[:fields]) do
-              :ok ->
-                %{acc | indexed: acc.indexed + 1}
+    {:ok, nodes} = EtsGraphStore.list_nodes()
 
-              _error ->
-                %{acc | errors: acc.errors + 1}
-            end
-          end)
+    results =
+      Enum.reduce(nodes, %{indexed: 0, errors: 0}, fn node, acc ->
+        case index_node(node.id, node.properties, opts[:fields]) do
+          :ok ->
+            %{acc | indexed: acc.indexed + 1}
 
-        {:ok, results}
+          _error ->
+            %{acc | errors: acc.errors + 1}
+        end
+      end)
 
-      error ->
-        error
-    end
+    {:ok, results}
   end
 
   @doc """

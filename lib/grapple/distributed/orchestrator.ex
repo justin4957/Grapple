@@ -646,10 +646,8 @@ defmodule Grapple.Distributed.Orchestrator do
 
   defp discover_peer_nodes do
     # Discover other nodes in the cluster
-    case Grapple.Distributed.Discovery.discover_peers() do
-      {:ok, peers} -> peers
-      _ -> []
-    end
+    {:ok, peers} = Grapple.Distributed.Discovery.discover_peers()
+    peers
   end
 
   defp establish_peer_connections(peers) do

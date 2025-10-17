@@ -22,14 +22,9 @@ defmodule Grapple.Visualization.AsciiRenderer do
   def render_subgraph(start_node_id, depth \\ 2, config \\ %{}) do
     config = Map.merge(@default_config, config)
 
-    case collect_subgraph(start_node_id, depth) do
-      {:ok, {nodes, edges}} ->
-        layout = calculate_layout(nodes, edges, config)
-        render_layout(layout, config)
-
-      {:error, reason} ->
-        "Error rendering subgraph: #{reason}"
-    end
+    {:ok, {nodes, edges}} = collect_subgraph(start_node_id, depth)
+    layout = calculate_layout(nodes, edges, config)
+    render_layout(layout, config)
   end
 
   def render_query_result(nodes, edges, config \\ %{}) do
@@ -64,14 +59,9 @@ defmodule Grapple.Visualization.AsciiRenderer do
   end
 
   defp collect_subgraph(start_node_id, depth) do
-    case traverse_for_visualization(start_node_id, depth) do
-      {:ok, nodes} ->
-        edges = collect_edges_between_nodes(nodes)
-        {:ok, {nodes, edges}}
-
-      error ->
-        error
-    end
+    {:ok, nodes} = traverse_for_visualization(start_node_id, depth)
+    edges = collect_edges_between_nodes(nodes)
+    {:ok, {nodes, edges}}
   end
 
   defp traverse_for_visualization(start_node_id, depth) do
@@ -116,17 +106,13 @@ defmodule Grapple.Visualization.AsciiRenderer do
 
     nodes
     |> Enum.flat_map(fn node ->
-      case EtsGraphStore.get_edges_from(node.id) do
-        {:ok, edges} ->
-          edges
-          |> Enum.filter(fn {_from, edge} ->
-            MapSet.member?(node_ids, edge.to)
-          end)
-          |> Enum.map(fn {_from, edge} -> edge end)
+      {:ok, edges} = EtsGraphStore.get_edges_from(node.id)
 
-        _ ->
-          []
-      end
+      edges
+      |> Enum.filter(fn {_from, edge} ->
+        MapSet.member?(node_ids, edge.to)
+      end)
+      |> Enum.map(fn {_from, edge} -> edge end)
     end)
     |> Enum.uniq_by(fn edge -> edge.id end)
   end
@@ -154,17 +140,13 @@ defmodule Grapple.Visualization.AsciiRenderer do
   end
 
   defp find_edge_between(from_id, to_id) do
-    case EtsGraphStore.get_edges_from(from_id) do
-      {:ok, edges} ->
-        edges
-        |> Enum.find(fn {_from, edge} -> edge.to == to_id end)
-        |> case do
-          {_from, edge} -> edge
-          nil -> nil
-        end
+    {:ok, edges} = EtsGraphStore.get_edges_from(from_id)
 
-      _ ->
-        nil
+    edges
+    |> Enum.find(fn {_from, edge} -> edge.to == to_id end)
+    |> case do
+      {_from, edge} -> edge
+      nil -> nil
     end
   end
 
