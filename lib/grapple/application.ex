@@ -21,6 +21,7 @@ defmodule Grapple.Application do
   defp base_children do
     [
       Grapple.Storage.EtsGraphStore,
+      Grapple.Search.InvertedIndex,
       Grapple.Cluster.NodeManager,
       # Phoenix PubSub
       {Phoenix.PubSub, name: Grapple.PubSub},

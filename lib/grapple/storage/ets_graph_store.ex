@@ -224,6 +224,13 @@ defmodule Grapple.Storage.EtsGraphStore do
           :ets.insert(state.property_index_table, {{key, value}, node_id})
         end)
 
+        # Index for full-text search
+        try do
+          Grapple.Search.index_node(node_id, validated_properties)
+        rescue
+          _ -> :ok
+        end
+
         new_state = %{state | node_id_counter: node_id + 1}
         {:reply, {:ok, node_id}, new_state}
 
@@ -287,6 +294,13 @@ defmodule Grapple.Storage.EtsGraphStore do
         Enum.each(node.properties, fn {key, value} ->
           :ets.delete_object(state.property_index_table, {{key, value}, node_id})
         end)
+
+        # Remove from full-text search index
+        try do
+          Grapple.Search.remove_node(node_id)
+        rescue
+          _ -> :ok
+        end
 
         # Remove node and adjacency lists
         :ets.delete(state.nodes_table, node_id)
