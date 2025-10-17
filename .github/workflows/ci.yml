@@ -111,12 +111,17 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      - name: Compile for quality checks
+        run: MIX_ENV=dev mix compile
+
       - name: Check for unused dependencies
         run: mix deps.unlock --check-unused
 
       - name: Check for security vulnerabilities
         run: mix deps.audit
-        continue-on-error: true
+
+      - name: Run Credo (static code analysis)
+        run: mix credo --strict
 
   docs:
     name: Documentation
@@ -153,3 +158,45 @@ jobs:
         with:
           name: documentation
           path: doc/
+
+  dialyzer:
+    name: Static Analysis (Dialyzer)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.1'
+          otp-version: '27.2'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-dialyzer-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-dialyzer-
+
+      - name: Cache PLT files
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-plt-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile for Dialyzer
+        run: MIX_ENV=dev mix compile
+
+      - name: Run Dialyzer
+        run: mix dialyzer
