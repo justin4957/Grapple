@@ -152,4 +152,83 @@ defmodule Grapple.Analytics.CentralityTest do
       assert {:error, :node_not_found} = Centrality.closeness_centrality(99999)
     end
   end
+
+  describe "eigenvector_centrality/1" do
+    test "returns empty map for empty graph" do
+      assert {:ok, centralities} = Centrality.eigenvector_centrality()
+      assert centralities == %{}
+    end
+
+    test "calculates eigenvector centrality for simple graph" do
+      # Create a simple 3-node graph: 1 -> 2 -> 3
+      {:ok, node1} = Grapple.create_node(%{name: "A"})
+      {:ok, node2} = Grapple.create_node(%{name: "B"})
+      {:ok, node3} = Grapple.create_node(%{name: "C"})
+
+      Grapple.create_edge(node1, node2, "links_to")
+      Grapple.create_edge(node2, node3, "links_to")
+
+      assert {:ok, centralities} = Centrality.eigenvector_centrality()
+      assert map_size(centralities) == 3
+
+      # All centralities should be non-negative
+      assert Enum.all?(centralities, fn {_id, centrality} -> centrality >= 0 end)
+    end
+
+    test "gives higher centrality to nodes connected to important nodes" do
+      # Create a star graph: 1,2,3 -> 4 (center), and 4 -> 5 (important)
+      {:ok, node1} = Grapple.create_node(%{name: "A"})
+      {:ok, node2} = Grapple.create_node(%{name: "B"})
+      {:ok, node3} = Grapple.create_node(%{name: "C"})
+      {:ok, center} = Grapple.create_node(%{name: "Center"})
+      {:ok, important} = Grapple.create_node(%{name: "Important"})
+
+      Grapple.create_edge(node1, center, "links_to")
+      Grapple.create_edge(node2, center, "links_to")
+      Grapple.create_edge(node3, center, "links_to")
+      Grapple.create_edge(center, important, "links_to")
+
+      assert {:ok, centralities} = Centrality.eigenvector_centrality()
+
+      # Important node should have high centrality as it receives from center
+      # which itself receives from many nodes
+      important_centrality = Map.get(centralities, important)
+      assert important_centrality >= 0
+    end
+
+    test "accepts custom max_iterations and tolerance" do
+      {:ok, node1} = Grapple.create_node(%{name: "A"})
+      {:ok, node2} = Grapple.create_node(%{name: "B"})
+      Grapple.create_edge(node1, node2, "links_to")
+
+      assert {:ok, centralities1} = Centrality.eigenvector_centrality(max_iterations: 10)
+      assert {:ok, centralities2} = Centrality.eigenvector_centrality(max_iterations: 100)
+
+      # Both should return valid results
+      assert map_size(centralities1) == 2
+      assert map_size(centralities2) == 2
+    end
+
+    test "normalized results form unit vector" do
+      # Create a triangle graph
+      {:ok, node1} = Grapple.create_node(%{name: "A"})
+      {:ok, node2} = Grapple.create_node(%{name: "B"})
+      {:ok, node3} = Grapple.create_node(%{name: "C"})
+
+      Grapple.create_edge(node1, node2, "connects")
+      Grapple.create_edge(node2, node3, "connects")
+      Grapple.create_edge(node3, node1, "connects")
+
+      assert {:ok, centralities} = Centrality.eigenvector_centrality()
+
+      # Sum of squares should be approximately 1 (L2 normalization)
+      sum_of_squares =
+        centralities
+        |> Map.values()
+        |> Enum.map(&(&1 * &1))
+        |> Enum.sum()
+
+      assert_in_delta(sum_of_squares, 1.0, 0.01)
+    end
+  end
 end

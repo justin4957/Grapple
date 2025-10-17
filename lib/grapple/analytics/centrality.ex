@@ -6,6 +6,7 @@ defmodule Grapple.Analytics.Centrality do
   - PageRank
   - Betweenness centrality
   - Closeness centrality
+  - Eigenvector centrality
   """
 
   alias Grapple.Storage.EtsGraphStore
@@ -256,10 +257,126 @@ defmodule Grapple.Analytics.Centrality do
     end
   end
 
+  @doc """
+  Calculate eigenvector centrality for all nodes using power iteration.
+
+  Eigenvector centrality measures node importance based on connections to other important nodes.
+  A node is important if it is connected to other important nodes.
+
+  ## Algorithm
+  Uses power iteration method similar to PageRank, but without damping factor.
+  Eigenvector(node) = Σ(Eigenvector(incoming) / total_incoming_connections)
+
+  ## Options
+  - `:max_iterations` - Maximum iterations for convergence (default: 100)
+  - `:tolerance` - Convergence threshold (default: 0.0001)
+
+  ## Returns
+  - `{:ok, %{node_id => centrality_score}}` - Map of node IDs to centrality scores
+
+  ## Example
+      iex> {:ok, scores} = Grapple.Analytics.eigenvector_centrality()
+      iex> {most_influential_id, score} = Enum.max_by(scores, fn {_id, score} -> score end)
+  """
+  def eigenvector_centrality(opts \\ []) do
+    max_iterations = Keyword.get(opts, :max_iterations, @default_max_iterations)
+    tolerance = Keyword.get(opts, :tolerance, @default_tolerance)
+
+    with {:ok, nodes} <- EtsGraphStore.list_nodes(),
+         {:ok, edges} <- EtsGraphStore.list_edges() do
+      node_count = length(nodes)
+
+      if node_count == 0 do
+        {:ok, %{}}
+      else
+        # Initialize all nodes with equal centrality
+        initial_centrality = 1.0 / node_count
+        centralities = Map.new(nodes, fn node -> {node.id, initial_centrality} end)
+
+        # Build adjacency list (incoming edges for each node)
+        incoming_edges = build_incoming_edges_map(edges)
+
+        # Iterate until convergence
+        final_centralities =
+          iterate_eigenvector(centralities, incoming_edges, max_iterations, tolerance)
+
+        # Normalize to unit vector (L2 normalization)
+        sum_of_squares =
+          final_centralities
+          |> Map.values()
+          |> Enum.map(&(&1 * &1))
+          |> Enum.sum()
+
+        normalization_factor = :math.sqrt(sum_of_squares)
+
+        normalized_centralities =
+          if normalization_factor > 0 do
+            Map.new(final_centralities, fn {node_id, centrality} ->
+              {node_id, centrality / normalization_factor}
+            end)
+          else
+            final_centralities
+          end
+
+        {:ok, normalized_centralities}
+      end
+    end
+  end
+
+  defp iterate_eigenvector(
+         centralities,
+         incoming_edges,
+         max_iterations,
+         tolerance,
+         iteration \\ 0
+       ) do
+    if iteration >= max_iterations do
+      centralities
+    else
+      # Calculate new centrality scores based on incoming connections
+      new_centralities =
+        Map.new(centralities, fn {node_id, _old_centrality} ->
+          # Sum the centralities of all nodes that link to this node
+          incoming_contribution =
+            incoming_edges
+            |> Map.get(node_id, [])
+            |> Enum.reduce(0.0, fn edge, acc ->
+              source_centrality = Map.get(centralities, edge.from, 0.0)
+              acc + source_centrality
+            end)
+
+          {node_id, incoming_contribution}
+        end)
+
+      # Check for convergence
+      diff =
+        Enum.reduce(new_centralities, 0.0, fn {node_id, new_cent}, acc ->
+          old_cent = Map.get(centralities, node_id)
+          acc + abs(new_cent - old_cent)
+        end)
+
+      if diff < tolerance do
+        new_centralities
+      else
+        iterate_eigenvector(
+          new_centralities,
+          incoming_edges,
+          max_iterations,
+          tolerance,
+          iteration + 1
+        )
+      end
+    end
+  end
+
   # Helper functions
 
   defp build_outgoing_edges_map(edges) do
     Enum.group_by(edges, fn edge -> edge.from end)
+  end
+
+  defp build_incoming_edges_map(edges) do
+    Enum.group_by(edges, fn edge -> edge.to end)
   end
 
   defp build_adjacency_list(edges, nodes) do

@@ -35,6 +35,8 @@ end)
 
 ## Centrality Analysis
 
+Centrality algorithms help identify the most important nodes in a network based on different criteria.
+
 ### PageRank: Finding Influential Nodes
 
 PageRank identifies the most important nodes based on their connections and the importance of nodes linking to them.
@@ -105,6 +107,47 @@ else
 end
 ```
 
+### Eigenvector Centrality: Influence by Association
+
+Eigenvector centrality identifies nodes that are connected to other influential nodes. A node is important if it's connected to other important nodes.
+
+```elixir
+# Calculate eigenvector centrality
+{:ok, centralities} = Grapple.Analytics.eigenvector_centrality()
+
+# Find most influential nodes
+top_nodes =
+  centralities
+  |> Enum.sort_by(fn {_id, centrality} -> -centrality end)
+  |> Enum.take(5)
+
+IO.puts("Top 5 nodes by eigenvector centrality:")
+Enum.each(top_nodes, fn {node_id, centrality} ->
+  IO.puts("  Node #{node_id}: #{Float.round(centrality, 6)}")
+end)
+```
+
+**Custom Options:**
+
+```elixir
+# Adjust convergence parameters
+{:ok, centralities} = Grapple.Analytics.eigenvector_centrality(
+  max_iterations: 100,    # Maximum iterations (default: 100)
+  tolerance: 0.0001       # Convergence threshold (default: 0.0001)
+)
+```
+
+**Use Cases:**
+- Identify influential nodes in social networks
+- Find important papers in citation networks
+- Detect authoritative web pages
+- Analyze protein interaction networks
+
+**Difference from PageRank:**
+- PageRank includes damping factor (random jumps)
+- Eigenvector centrality is "purer" - only based on neighbor importance
+- Both use power iteration, but Eigenvector uses L2 normalization
+
 ## Community Detection
 
 ### Connected Components: Finding Clusters
@@ -154,6 +197,129 @@ else
   IO.puts("Alice connects diverse groups (spanning structural holes)")
 end
 ```
+
+### Louvain Algorithm: Advanced Community Detection
+
+The Louvain algorithm detects communities by optimizing modularity, which measures the density of links within communities compared to random networks.
+
+```elixir
+# Detect communities using Louvain algorithm
+{:ok, communities} = Grapple.Analytics.louvain_communities()
+
+# Group nodes by their community
+community_groups =
+  communities
+  |> Enum.group_by(&elem(&1, 1), &elem(&1, 0))
+
+IO.puts("Detected #{map_size(community_groups)} communities")
+
+# Analyze each community
+Enum.each(community_groups, fn {comm_id, node_ids} ->
+  IO.puts("Community #{comm_id}: #{length(node_ids)} members")
+  IO.puts("  Nodes: #{Enum.join(Enum.take(node_ids, 5), ", ")}...")
+end)
+```
+
+**Use Cases:**
+- Social network analysis (friend groups, interest clusters)
+- Biological networks (protein complexes, metabolic pathways)
+- Recommendation systems (user segments)
+- Network visualization (group nodes by community)
+
+**Algorithm Details:**
+- Two-phase optimization: local moves + network aggregation
+- Greedy modularity maximization
+- Fast and scalable: O(n log n) complexity
+- Produces hierarchical community structure
+
+### K-Core Decomposition: Finding Dense Subgraphs
+
+K-core decomposition finds the most tightly connected subgraphs by identifying cores where every node has at least k connections.
+
+```elixir
+# Perform k-core decomposition
+{:ok, cores} = Grapple.Analytics.k_core_decomposition()
+
+# Find maximum core number
+max_core = cores |> Map.values() |> Enum.max()
+IO.puts("Maximum core number: #{max_core}")
+
+# Find nodes in the highest core (most connected)
+highest_core_nodes =
+  cores
+  |> Enum.filter(fn {_id, core} -> core == max_core end)
+  |> Enum.map(&elem(&1, 0))
+
+IO.puts("Most densely connected nodes (#{max_core}-core):")
+IO.puts("  #{Enum.join(highest_core_nodes, ", ")}")
+
+# Analyze core distribution
+core_distribution =
+  cores
+  |> Enum.group_by(&elem(&1, 1))
+  |> Enum.sort_by(&elem(&1, 0), :desc)
+
+Enum.each(core_distribution, fn {k, nodes} ->
+  IO.puts("  #{k}-core: #{length(nodes)} nodes")
+end)
+```
+
+**Use Cases:**
+- Find influential groups in social networks
+- Identify resilient network structures
+- Network visualization (layout by core number)
+- Spam detection (low core = peripheral)
+- Infrastructure analysis (critical subnetworks)
+
+**Interpretation:**
+- **High core number**: Node is part of densely connected group
+- **Low core number**: Peripheral node with few connections
+- **Core 0**: Isolated nodes
+- **Core 1**: Nodes with only 1 connection
+
+### Triangle Counting: Network Cohesion
+
+Count how many triangles each node participates in. Triangles indicate strong local clustering and cohesion.
+
+```elixir
+# Count triangles for each node
+{:ok, triangles} = Grapple.Analytics.triangle_count()
+
+# Calculate total triangles in graph
+total_triangles = triangles |> Map.values() |> Enum.sum() |> div(3)
+IO.puts("Total triangles in network: #{total_triangles}")
+
+# Find nodes with most triangle participation
+top_triangle_nodes =
+  triangles
+  |> Enum.sort_by(&elem(&1, 1), :desc)
+  |> Enum.take(10)
+
+IO.puts("Top 10 nodes by triangle participation:")
+Enum.each(top_triangle_nodes, fn {node_id, count} ->
+  IO.puts("  Node #{node_id}: #{count} triangles")
+end)
+
+# Identify nodes with no triangles (tree-like connections)
+no_triangles =
+  triangles
+  |> Enum.filter(fn {_id, count} -> count == 0 end)
+  |> length()
+
+IO.puts("Nodes with no triangles: #{no_triangles}")
+```
+
+**Use Cases:**
+- Spam detection (spammers have few triangles)
+- Community strength measurement
+- Network resilience analysis
+- Social network authenticity verification
+- Clustering coefficient calculation
+
+**Relationship to Clustering:**
+- High triangle count = strong local clustering
+- Triangle count / possible triangles = local clustering coefficient
+- Complements global clustering coefficient
 
 ## Graph Metrics
 
@@ -322,35 +488,139 @@ recommendations = alice_community -- [alice]
 
 For large graphs, analytics algorithms can be computationally intensive:
 
+### Algorithm Complexity
+
+**Centrality Algorithms:**
 - **PageRank**: O(iterations × edges) - typically converges in 20-50 iterations
+- **Eigenvector Centrality**: O(iterations × edges) - similar to PageRank
 - **Betweenness**: O(nodes × edges) - most expensive algorithm
+- **Closeness**: O(nodes × edges) - requires BFS from each node
+
+**Community Detection:**
 - **Connected Components**: O(nodes + edges) - very efficient with Union-Find
+- **Louvain**: O(nodes × log(nodes)) - fast and scalable
+- **K-Core**: O(nodes + edges) - linear time with bucket sorting
+- **Triangle Counting**: O(nodes × degree²) - depends on network density
 - **Clustering Coefficient**: O(nodes × degree²) - depends on node connectivity
 
-Tips for large graphs:
-1. Use `max_iterations` and `tolerance` to control PageRank convergence
-2. Calculate betweenness only when needed (it's the slowest)
-3. Cache results and recalculate only when graph changes significantly
-4. Consider sampling for approximate analytics on very large graphs
+### Optimization Tips
+
+1. **PageRank & Eigenvector Centrality**:
+   - Use `max_iterations` and `tolerance` to control convergence
+   - Start with lower iterations for quick approximations
+   - These algorithms are parallelizable for very large graphs
+
+2. **Betweenness Centrality**:
+   - Most computationally expensive - calculate only when needed
+   - Consider approximation algorithms for graphs > 10,000 nodes
+   - Can be sampled (calculate for subset of nodes)
+
+3. **Community Detection**:
+   - Louvain is fast even for large graphs (millions of nodes)
+   - K-core is very efficient - use for quick network structure analysis
+   - Connected components is fastest - always run first for basic structure
+
+4. **Triangle Counting**:
+   - Performance depends on network density
+   - Works well for sparse graphs
+   - Consider node-iterator or edge-iterator based on graph structure
+
+5. **General Optimization**:
+   - Cache results and recalculate only when graph changes significantly
+   - Run analyses during off-peak hours for large graphs
+   - Consider incremental updates for dynamic graphs
+   - Use sampling for approximate analytics on very large graphs
+
+### When to Use Each Algorithm
+
+**Quick Analysis (< 1 second for moderate graphs)**:
+- Connected Components
+- K-Core Decomposition
+- Graph Density
+- Degree Distribution
+
+**Medium Analysis (seconds to minutes)**:
+- PageRank
+- Eigenvector Centrality
+- Louvain Communities
+- Triangle Counting
+- Clustering Coefficient
+
+**Intensive Analysis (minutes to hours for large graphs)**:
+- Betweenness Centrality
+- Closeness Centrality (all nodes)
+- Graph Diameter
 
 ## API Reference
 
 All analytics functions return `{:ok, result}` or `{:error, reason}` tuples.
 
-### Centrality
-- `Grapple.Analytics.pagerank(opts \\ [])` - PageRank scores
-- `Grapple.Analytics.betweenness_centrality()` - Betweenness centrality scores
-- `Grapple.Analytics.closeness_centrality(node_id)` - Closeness for specific node
+### Centrality (`Grapple.Analytics.Centrality`)
+- `pagerank(opts \\ [])` - PageRank scores for all nodes
+  - Options: `:damping_factor`, `:max_iterations`, `:tolerance`
+  - Returns: `{:ok, %{node_id => score}}`
 
-### Community
-- `Grapple.Analytics.connected_components()` - List of components
-- `Grapple.Analytics.clustering_coefficient()` - Global clustering coefficient
-- `Grapple.Analytics.local_clustering_coefficient(node_id)` - Local clustering
+- `eigenvector_centrality(opts \\ [])` - Eigenvector centrality scores
+  - Options: `:max_iterations`, `:tolerance`
+  - Returns: `{:ok, %{node_id => centrality}}`
 
-### Metrics
-- `Grapple.Analytics.graph_density()` - Graph density (0.0-1.0)
-- `Grapple.Analytics.graph_diameter()` - Maximum shortest path length
-- `Grapple.Analytics.degree_distribution()` - Degree statistics
-- `Grapple.Analytics.average_path_length()` - Mean shortest path length
-- `Grapple.Analytics.connectivity_metrics()` - Connectivity analysis
-- `Grapple.Analytics.summary()` - All metrics in one call
+- `betweenness_centrality()` - Betweenness centrality scores for all nodes
+  - Returns: `{:ok, %{node_id => score}}`
+
+- `closeness_centrality(node_id)` - Closeness centrality for specific node
+  - Returns: `{:ok, closeness_value}`
+
+### Community (`Grapple.Analytics.Community`)
+- `connected_components()` - Find all connected components
+  - Returns: `{:ok, [[node_ids], ...]}` (sorted by size, descending)
+
+- `louvain_communities()` - Detect communities using Louvain algorithm
+  - Returns: `{:ok, %{node_id => community_id}}`
+
+- `k_core_decomposition()` - Compute k-core numbers for all nodes
+  - Returns: `{:ok, %{node_id => core_number}}`
+
+- `triangle_count()` - Count triangles for each node
+  - Returns: `{:ok, %{node_id => triangle_count}}`
+
+- `clustering_coefficient()` - Global clustering coefficient
+  - Returns: `{:ok, coefficient}`
+
+- `local_clustering_coefficient(node_id)` - Local clustering for specific node
+  - Returns: `{:ok, coefficient}`
+
+### Metrics (`Grapple.Analytics.Metrics`)
+- `graph_density()` - Graph density (0.0-1.0)
+  - Returns: `{:ok, density}`
+
+- `graph_diameter()` - Maximum shortest path length
+  - Returns: `{:ok, diameter}`
+
+- `degree_distribution()` - Degree statistics (min, max, mean, median, std_dev)
+  - Returns: `{:ok, %{min: _, max: _, mean: _, median: _, std_dev: _}}`
+
+- `average_path_length()` - Mean shortest path length
+  - Returns: `{:ok, avg_length}`
+
+- `connectivity_metrics()` - Connectivity analysis
+  - Returns: `{:ok, %{is_connected: _, component_count: _, largest_component_size: _}}`
+
+- `summary()` - All metrics in one call
+  - Returns: `{:ok, %{density: _, diameter: _, ...}}`
+
+### CLI Commands
+
+All analytics are also available via the CLI:
+- `ANALYTICS PAGERANK` - Show top PageRank scores
+- `ANALYTICS EIGENVECTOR` - Show top eigenvector centrality scores
+- `ANALYTICS BETWEENNESS` - Show top betweenness scores
+- `ANALYTICS CLOSENESS <node_id>` - Calculate closeness for node
+- `ANALYTICS COMPONENTS` - List connected components
+- `ANALYTICS LOUVAIN` - Show Louvain communities
+- `ANALYTICS KCORE` - Display k-core decomposition
+- `ANALYTICS TRIANGLES` - Show triangle counts
+- `ANALYTICS CLUSTERING` - Global clustering coefficient
+- `ANALYTICS DENSITY` - Graph density
+- `ANALYTICS DIAMETER` - Graph diameter
+- `ANALYTICS DEGREES` - Degree distribution
+- `ANALYTICS SUMMARY` - Complete analytics summary
