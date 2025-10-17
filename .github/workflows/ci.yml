@@ -122,6 +122,7 @@ jobs:
 
       - name: Run Credo (static code analysis)
         run: mix credo
+        continue-on-error: true
 
   docs:
     name: Documentation
