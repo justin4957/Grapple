@@ -696,11 +696,6 @@ defmodule Grapple.Distributed.PersistenceManager do
     remove_data_from_ets(data_key)
   end
 
-  defp remove_data_from_tier(_data_key, _other_tier) do
-    # Mnesia and DETS removal not yet implemented
-    :ok
-  end
-
   defp update_tier_utilization_after_migration(_data_key, data, from_tier, to_tier, state) do
     data_size = :erlang.external_size(data)
 

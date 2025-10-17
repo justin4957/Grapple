@@ -31,6 +31,8 @@ defmodule Mix.Tasks.Bench do
 
   @requirements ["app.start"]
 
+  @dialyzer :no_behaviours
+
   @impl Mix.Task
   def run(args) do
     {opts, _, _} =
