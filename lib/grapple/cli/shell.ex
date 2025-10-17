@@ -41,9 +41,6 @@ defmodule Grapple.CLI.Shell do
         |> handle_command_with_validation()
 
         repl_loop()
-
-      _ ->
-        repl_loop()
     end
   end
 
@@ -258,58 +255,43 @@ defmodule Grapple.CLI.Shell do
   end
 
   defp handle_command("ANALYTICS SUMMARY") do
-    case Grapple.Analytics.summary() do
-      {:ok, summary} ->
-        IO.puts("#{IO.ANSI.cyan()}Analytics Summary:#{IO.ANSI.reset()}")
-        IO.puts("  Density: #{Float.round(summary.density, 4)}")
-        IO.puts("  Diameter: #{summary.diameter}")
-        IO.puts("  Components: #{summary.component_count}")
-        IO.puts("  Clustering Coefficient: #{Float.round(summary.clustering_coefficient, 4)}")
-        IO.puts("  Degree Distribution:")
-        IO.puts("    Min: #{summary.degree_distribution.min}")
-        IO.puts("    Max: #{summary.degree_distribution.max}")
-        IO.puts("    Mean: #{Float.round(summary.degree_distribution.mean, 2)}")
-        IO.puts("    Median: #{Float.round(summary.degree_distribution.median, 2)}")
-
-      {:error, reason} ->
-        IO.puts("❌ Analytics error: #{inspect(reason)}")
-    end
+    {:ok, summary} = Grapple.Analytics.summary()
+    IO.puts("#{IO.ANSI.cyan()}Analytics Summary:#{IO.ANSI.reset()}")
+    IO.puts("  Density: #{Float.round(summary.density, 4)}")
+    IO.puts("  Diameter: #{summary.diameter}")
+    IO.puts("  Components: #{summary.component_count}")
+    IO.puts("  Clustering Coefficient: #{Float.round(summary.clustering_coefficient, 4)}")
+    IO.puts("  Degree Distribution:")
+    IO.puts("    Min: #{summary.degree_distribution.min}")
+    IO.puts("    Max: #{summary.degree_distribution.max}")
+    IO.puts("    Mean: #{Float.round(summary.degree_distribution.mean, 2)}")
+    IO.puts("    Median: #{Float.round(summary.degree_distribution.median, 2)}")
   end
 
   defp handle_command("ANALYTICS PAGERANK") do
-    case Grapple.Analytics.pagerank() do
-      {:ok, ranks} ->
-        IO.puts("#{IO.ANSI.cyan()}PageRank Scores (Top 10):#{IO.ANSI.reset()}")
+    {:ok, ranks} = Grapple.Analytics.pagerank()
+    IO.puts("#{IO.ANSI.cyan()}PageRank Scores (Top 10):#{IO.ANSI.reset()}")
 
-        ranks
-        |> Enum.sort_by(fn {_id, rank} -> -rank end)
-        |> Enum.take(10)
-        |> Enum.with_index(1)
-        |> Enum.each(fn {{node_id, rank}, index} ->
-          IO.puts("  #{index}. Node #{node_id}: #{Float.round(rank, 6)}")
-        end)
-
-      {:error, reason} ->
-        IO.puts("❌ PageRank error: #{inspect(reason)}")
-    end
+    ranks
+    |> Enum.sort_by(fn {_id, rank} -> -rank end)
+    |> Enum.take(10)
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{node_id, rank}, index} ->
+      IO.puts("  #{index}. Node #{node_id}: #{Float.round(rank, 6)}")
+    end)
   end
 
   defp handle_command("ANALYTICS BETWEENNESS") do
-    case Grapple.Analytics.betweenness_centrality() do
-      {:ok, betweenness} ->
-        IO.puts("#{IO.ANSI.cyan()}Betweenness Centrality (Top 10):#{IO.ANSI.reset()}")
+    {:ok, betweenness} = Grapple.Analytics.betweenness_centrality()
+    IO.puts("#{IO.ANSI.cyan()}Betweenness Centrality (Top 10):#{IO.ANSI.reset()}")
 
-        betweenness
-        |> Enum.sort_by(fn {_id, score} -> -score end)
-        |> Enum.take(10)
-        |> Enum.with_index(1)
-        |> Enum.each(fn {{node_id, score}, index} ->
-          IO.puts("  #{index}. Node #{node_id}: #{Float.round(score, 4)}")
-        end)
-
-      {:error, reason} ->
-        IO.puts("❌ Betweenness error: #{inspect(reason)}")
-    end
+    betweenness
+    |> Enum.sort_by(fn {_id, score} -> -score end)
+    |> Enum.take(10)
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{node_id, score}, index} ->
+      IO.puts("  #{index}. Node #{node_id}: #{Float.round(score, 4)}")
+    end)
   end
 
   defp handle_command("ANALYTICS CLOSENESS " <> node_id_str) do
@@ -321,9 +303,6 @@ defmodule Grapple.CLI.Shell do
 
           {:error, :node_not_found} ->
             IO.puts("❌ Node #{node_id} not found")
-
-          {:error, reason} ->
-            IO.puts("❌ Error: #{inspect(reason)}")
         end
 
       _ ->
@@ -332,79 +311,54 @@ defmodule Grapple.CLI.Shell do
   end
 
   defp handle_command("ANALYTICS COMPONENTS") do
-    case Grapple.Analytics.connected_components() do
-      {:ok, components} ->
-        IO.puts("#{IO.ANSI.cyan()}Connected Components: #{length(components)}#{IO.ANSI.reset()}")
+    {:ok, components} = Grapple.Analytics.connected_components()
+    IO.puts("#{IO.ANSI.cyan()}Connected Components: #{length(components)}#{IO.ANSI.reset()}")
 
-        components
-        |> Enum.with_index(1)
-        |> Enum.each(fn {component, index} ->
-          IO.puts(
-            "  Component #{index} (#{length(component)} nodes): #{Enum.join(Enum.take(component, 10), ", ")}#{if length(component) > 10, do: "...", else: ""}"
-          )
-        end)
-
-      {:error, reason} ->
-        IO.puts("❌ Components error: #{inspect(reason)}")
-    end
+    components
+    |> Enum.with_index(1)
+    |> Enum.each(fn {component, index} ->
+      IO.puts(
+        "  Component #{index} (#{length(component)} nodes): #{Enum.join(Enum.take(component, 10), ", ")}#{if length(component) > 10, do: "...", else: ""}"
+      )
+    end)
   end
 
   defp handle_command("ANALYTICS CLUSTERING") do
-    case Grapple.Analytics.clustering_coefficient() do
-      {:ok, coefficient} ->
-        IO.puts("Global Clustering Coefficient: #{Float.round(coefficient, 6)}")
+    {:ok, coefficient} = Grapple.Analytics.clustering_coefficient()
+    IO.puts("Global Clustering Coefficient: #{Float.round(coefficient, 6)}")
 
-        interpretation =
-          cond do
-            coefficient < 0.1 -> "Very sparse network"
-            coefficient < 0.3 -> "Loosely connected"
-            coefficient < 0.6 -> "Moderately clustered"
-            true -> "Highly clustered"
-          end
+    interpretation =
+      cond do
+        coefficient < 0.1 -> "Very sparse network"
+        coefficient < 0.3 -> "Loosely connected"
+        coefficient < 0.6 -> "Moderately clustered"
+        true -> "Highly clustered"
+      end
 
-        IO.puts("  Interpretation: #{interpretation}")
-
-      {:error, reason} ->
-        IO.puts("❌ Clustering error: #{inspect(reason)}")
-    end
+    IO.puts("  Interpretation: #{interpretation}")
   end
 
   defp handle_command("ANALYTICS DENSITY") do
-    case Grapple.Analytics.graph_density() do
-      {:ok, density} ->
-        IO.puts("Graph Density: #{Float.round(density, 6)}")
-        percentage = Float.round(density * 100, 2)
-        IO.puts("  #{percentage}% of possible edges exist")
-
-      {:error, reason} ->
-        IO.puts("❌ Density error: #{inspect(reason)}")
-    end
+    {:ok, density} = Grapple.Analytics.graph_density()
+    IO.puts("Graph Density: #{Float.round(density, 6)}")
+    percentage = Float.round(density * 100, 2)
+    IO.puts("  #{percentage}% of possible edges exist")
   end
 
   defp handle_command("ANALYTICS DIAMETER") do
-    case Grapple.Analytics.graph_diameter() do
-      {:ok, diameter} ->
-        IO.puts("Graph Diameter: #{diameter}")
-        IO.puts("  (Maximum shortest path length)")
-
-      {:error, reason} ->
-        IO.puts("❌ Diameter error: #{inspect(reason)}")
-    end
+    {:ok, diameter} = Grapple.Analytics.graph_diameter()
+    IO.puts("Graph Diameter: #{diameter}")
+    IO.puts("  (Maximum shortest path length)")
   end
 
   defp handle_command("ANALYTICS DEGREES") do
-    case Grapple.Analytics.degree_distribution() do
-      {:ok, stats} ->
-        IO.puts("#{IO.ANSI.cyan()}Degree Distribution:#{IO.ANSI.reset()}")
-        IO.puts("  Min Degree: #{stats.min}")
-        IO.puts("  Max Degree: #{stats.max}")
-        IO.puts("  Mean Degree: #{Float.round(stats.mean, 2)}")
-        IO.puts("  Median Degree: #{Float.round(stats.median, 2)}")
-        IO.puts("  Std Deviation: #{Float.round(stats.std_dev, 2)}")
-
-      {:error, reason} ->
-        IO.puts("❌ Degree distribution error: #{inspect(reason)}")
-    end
+    {:ok, stats} = Grapple.Analytics.degree_distribution()
+    IO.puts("#{IO.ANSI.cyan()}Degree Distribution:#{IO.ANSI.reset()}")
+    IO.puts("  Min Degree: #{stats.min}")
+    IO.puts("  Max Degree: #{stats.max}")
+    IO.puts("  Mean Degree: #{Float.round(stats.mean, 2)}")
+    IO.puts("  Median Degree: #{Float.round(stats.median, 2)}")
+    IO.puts("  Std Deviation: #{Float.round(stats.std_dev, 2)}")
   end
 
   defp handle_command("CLUSTER STATUS") do
@@ -901,9 +855,5 @@ defmodule Grapple.CLI.Shell do
         IO.puts("   • #{suggestion}")
       end)
     end
-  end
-
-  defp display_error(error) do
-    IO.puts("❌ Error: #{inspect(error)}")
   end
 end

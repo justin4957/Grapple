@@ -29,6 +29,10 @@ defmodule Mix.Tasks.Bench do
 
   use Mix.Task
 
+  @requirements ["app.start"]
+
+  @dialyzer :no_behaviours
+
   @impl Mix.Task
   def run(args) do
     {opts, _, _} =
@@ -41,9 +45,6 @@ defmodule Mix.Tasks.Bench do
           html_only: :boolean
         ]
       )
-
-    # Ensure the application is started
-    Mix.Task.run("app.start")
 
     # Determine which benchmarks to run
     suites =
@@ -99,9 +100,9 @@ defmodule Mix.Tasks.Bench do
   defp run_benchmark(path) do
     IO.puts("\n▶️  Running #{Path.basename(path)}...")
 
-    case Mix.shell().cmd("mix run #{path}") do
-      0 -> :ok
-      _error -> IO.puts(IO.ANSI.red() <> "⚠️  Benchmark failed" <> IO.ANSI.reset())
+    case System.cmd("mix", ["run", path], stderr_to_stdout: true) do
+      {_, 0} -> :ok
+      {_, _} -> IO.puts(IO.ANSI.red() <> "⚠️  Benchmark failed" <> IO.ANSI.reset())
     end
   end
 end

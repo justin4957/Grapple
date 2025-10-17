@@ -247,10 +247,7 @@ defmodule Grapple.Distributed.ClusterManager do
   end
 
   defp get_memory_info do
-    case :erlang.memory(:total) do
-      memory when is_integer(memory) -> memory
-      _ -> 0
-    end
+    :erlang.memory(:total)
   end
 
   defp get_cpu_cores do

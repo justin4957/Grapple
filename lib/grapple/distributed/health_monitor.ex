@@ -187,7 +187,8 @@ defmodule Grapple.Distributed.HealthMonitor do
   defp redistribute_partitions_from_failed_node(failed_node) do
     # Minimal implementation - just log for now
     # Real implementation would redistribute data partitions
-    :error_logger.info_msg("Redistributing partitions from failed node: ~p~n", [failed_node])
+    require Logger
+    Logger.info("Redistributing partitions from failed node: #{inspect(failed_node)}")
   end
 
   defp update_cluster_after_failure(failed_node) do

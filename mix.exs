@@ -9,6 +9,7 @@ defmodule Grapple.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
+      dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         coveralls: :test,
@@ -61,6 +62,15 @@ defmodule Grapple.MixProject do
       {:stream_data, "~> 1.1", only: :test},
       {:excoveralls, "~> 0.18", only: :test},
       {:mox, "~> 1.1", only: :test}
+    ]
+  end
+
+  defp dialyzer do
+    [
+      ignore_warnings: ".dialyzer_ignore.exs",
+      list_unused_filters: true,
+      # Only treat errors as failures, not warnings
+      flags: [:error_handling, :underspecs]
     ]
   end
 
