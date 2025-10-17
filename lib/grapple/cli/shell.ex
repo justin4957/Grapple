@@ -69,7 +69,11 @@ defmodule Grapple.CLI.Shell do
       ANALYTICS PAGERANK                 - Calculate PageRank scores
       ANALYTICS BETWEENNESS              - Calculate betweenness centrality
       ANALYTICS CLOSENESS <node_id>      - Calculate closeness for node
+      ANALYTICS EIGENVECTOR              - Calculate eigenvector centrality
       ANALYTICS COMPONENTS               - Find connected components
+      ANALYTICS LOUVAIN                  - Detect communities (Louvain algorithm)
+      ANALYTICS KCORE                    - K-core decomposition
+      ANALYTICS TRIANGLES                - Count triangles for each node
       ANALYTICS CLUSTERING               - Calculate clustering coefficient
       ANALYTICS DENSITY                  - Calculate graph density
       ANALYTICS DIAMETER                 - Calculate graph diameter
@@ -359,6 +363,95 @@ defmodule Grapple.CLI.Shell do
     IO.puts("  Mean Degree: #{Float.round(stats.mean, 2)}")
     IO.puts("  Median Degree: #{Float.round(stats.median, 2)}")
     IO.puts("  Std Deviation: #{Float.round(stats.std_dev, 2)}")
+  end
+
+  defp handle_command("ANALYTICS EIGENVECTOR") do
+    {:ok, centralities} = Grapple.Analytics.Centrality.eigenvector_centrality()
+    IO.puts("#{IO.ANSI.cyan()}Eigenvector Centrality (Top 10):#{IO.ANSI.reset()}")
+
+    centralities
+    |> Enum.sort_by(fn {_id, centrality} -> -centrality end)
+    |> Enum.take(10)
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{node_id, centrality}, index} ->
+      IO.puts("  #{index}. Node #{node_id}: #{Float.round(centrality, 6)}")
+    end)
+  end
+
+  defp handle_command("ANALYTICS LOUVAIN") do
+    {:ok, communities} = Grapple.Analytics.Community.louvain_communities()
+
+    # Group nodes by community
+    community_groups =
+      communities
+      |> Enum.group_by(fn {_node_id, comm_id} -> comm_id end, fn {node_id, _comm_id} ->
+        node_id
+      end)
+
+    IO.puts(
+      "#{IO.ANSI.cyan()}Louvain Communities: #{map_size(community_groups)}#{IO.ANSI.reset()}"
+    )
+
+    community_groups
+    |> Enum.sort_by(fn {_comm_id, nodes} -> -length(nodes) end)
+    |> Enum.take(10)
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{comm_id, nodes}, index} ->
+      node_preview = nodes |> Enum.take(5) |> Enum.join(", ")
+      more = if length(nodes) > 5, do: "...", else: ""
+
+      IO.puts(
+        "  Community #{index} (ID: #{comm_id}, #{length(nodes)} nodes): #{node_preview}#{more}"
+      )
+    end)
+  end
+
+  defp handle_command("ANALYTICS KCORE") do
+    {:ok, cores} = Grapple.Analytics.Community.k_core_decomposition()
+    max_core = if map_size(cores) > 0, do: cores |> Map.values() |> Enum.max(), else: 0
+
+    IO.puts("#{IO.ANSI.cyan()}K-Core Decomposition:#{IO.ANSI.reset()}")
+    IO.puts("  Maximum core number: #{max_core}")
+
+    # Show distribution of core numbers
+    core_distribution =
+      cores
+      |> Enum.group_by(fn {_node_id, core_num} -> core_num end)
+      |> Enum.sort_by(fn {core_num, _nodes} -> -core_num end)
+
+    IO.puts("  Core distribution:")
+
+    Enum.each(core_distribution, fn {core_num, nodes} ->
+      IO.puts("    Core #{core_num}: #{length(nodes)} nodes")
+    end)
+
+    # Show nodes in highest core
+    if max_core > 0 do
+      highest_core_nodes =
+        cores
+        |> Enum.filter(fn {_id, core} -> core == max_core end)
+        |> Enum.map(fn {id, _core} -> id end)
+        |> Enum.take(10)
+
+      IO.puts("  Nodes in highest core (#{max_core}): #{Enum.join(highest_core_nodes, ", ")}")
+    end
+  end
+
+  defp handle_command("ANALYTICS TRIANGLES") do
+    {:ok, triangles} = Grapple.Analytics.Community.triangle_count()
+    total_triangles = triangles |> Map.values() |> Enum.sum() |> div(3)
+
+    IO.puts("#{IO.ANSI.cyan()}Triangle Count:#{IO.ANSI.reset()}")
+    IO.puts("  Total triangles in graph: #{total_triangles}")
+    IO.puts("  Top 10 nodes by triangle participation:")
+
+    triangles
+    |> Enum.sort_by(fn {_id, count} -> -count end)
+    |> Enum.take(10)
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{node_id, count}, index} ->
+      IO.puts("    #{index}. Node #{node_id}: #{count} triangles")
+    end)
   end
 
   defp handle_command("CLUSTER STATUS") do
