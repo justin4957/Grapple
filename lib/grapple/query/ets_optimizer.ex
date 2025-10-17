@@ -301,9 +301,9 @@ defmodule Grapple.Query.EtsOptimizer do
     end
   end
 
-  defp cache_result(_key, {:ok, result} = success) do
+  defp cache_result(key, {:ok, result} = success) do
     try do
-      :ets.insert(@cache_table, {_key, result, System.system_time(:second)})
+      :ets.insert(@cache_table, {key, result, System.system_time(:second)})
     catch
       _ -> :ok
     end
