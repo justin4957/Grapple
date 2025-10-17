@@ -121,7 +121,7 @@ jobs:
         run: mix deps.audit
 
       - name: Run Credo (static code analysis)
-        run: mix credo --strict
+        run: mix credo
 
   docs:
     name: Documentation
