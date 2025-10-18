@@ -53,6 +53,12 @@ defmodule Grapple.MixProject do
        app: false,
        compile: false,
        depth: 1},
+      # Authentication & Authorization
+      {:joken, "~> 2.6"},
+      {:bcrypt_elixir, "~> 3.0"},
+      {:comeonin, "~> 5.4"},
+      {:guardian, "~> 2.3"},
+      {:bodyguard, "~> 2.4"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:benchee, "~> 1.3", only: :dev, runtime: false},
       {:benchee_html, "~> 1.0", only: :dev, runtime: false},

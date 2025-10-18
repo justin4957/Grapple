@@ -7,6 +7,9 @@ defmodule Grapple.Application do
 
   @impl true
   def start(_type, _args) do
+    # Initialize authentication and authorization tables
+    init_auth_tables()
+
     # Determine if we're running in distributed mode
     distributed_mode = Application.get_env(:grapple, :distributed, false)
 
@@ -48,5 +51,12 @@ defmodule Grapple.Application do
       Grapple.Distributed.Orchestrator,
       Grapple.Distributed.PersistenceManager
     ]
+  end
+
+  # Initialize authentication and authorization ETS tables
+  defp init_auth_tables do
+    Grapple.Auth.User.init()
+    Grapple.Auth.Permissions.init()
+    Grapple.Auth.AuditLog.init()
   end
 end
