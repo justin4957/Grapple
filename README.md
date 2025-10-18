@@ -35,7 +35,16 @@ Grapple is a modern, distributed graph database designed for speed, scalability,
 - 📊 **Monitoring**: Performance metrics and profiling tools
 - 🔄 **Replication**: Multi-strategy replication (minimal, balanced, maximum, adaptive)
 - 💾 **Tiered Storage**: ETS (hot) → Mnesia (warm) → DETS (cold)
-- 🔐 **Validation**: Comprehensive input validation and error handling
+- 🔐 **Authentication & Authorization**: JWT-based auth with RBAC
+- ✅ **Validation**: Comprehensive input validation and error handling
+
+### Security & Access Control
+- 🔐 **JWT Authentication**: Token-based authentication with Guardian
+- 👥 **Role-Based Access Control (RBAC)**: Fine-grained permissions
+- 🔑 **Built-in Roles**: admin, read_write, read_only, analytics
+- 🎭 **Custom Roles**: Define your own roles and permissions
+- 📋 **Audit Logging**: Track all security-sensitive operations
+- 🔒 **Password Security**: Bcrypt hashing with salt
 
 ## 🚀 Quick Start
 
@@ -75,6 +84,41 @@ end
 {:ok, pageranks} = Grapple.Analytics.pagerank()
 {:ok, components} = Grapple.Analytics.connected_components()
 {:ok, summary} = Grapple.Analytics.summary()
+```
+
+### Authentication & Security
+
+```elixir
+# Register users with roles
+{:ok, admin_user} = Grapple.Auth.register("admin", "secure_password", [:admin])
+{:ok, analyst} = Grapple.Auth.register("data_scientist", "password", [:analytics])
+
+# Login and get JWT token
+{:ok, token, _claims} = Grapple.Auth.login("admin", "secure_password")
+
+# Check permissions before operations
+case Grapple.Auth.authorize(admin_user.id, :create_node) do
+  :ok ->
+    Grapple.create_node(%{name: "Secure Data"})
+  {:error, :unauthorized} ->
+    {:error, "Permission denied"}
+end
+
+# Use guards for protected operations
+Grapple.Auth.Guard.require_permission(token, :delete_node, fn user ->
+  Grapple.delete_node(node_id)
+end)
+
+# Define custom roles
+Grapple.Auth.define_role(:data_engineer, [
+  :read_nodes,
+  :read_edges,
+  :create_nodes,
+  :run_analytics
+])
+
+# View audit logs
+logs = Grapple.Auth.AuditLog.get_user_logs(admin_user.id)
 ```
 
 ### Interactive CLI
@@ -126,6 +170,7 @@ grapple> VISUALIZE 1 2
 - **[Performance Guide](guides/advanced/performance.md)** - Optimization and tuning
 - **[Performance Monitoring](PERFORMANCE.md)** - Benchmarking and profiling tools
 - **[Distributed Mode](README_DISTRIBUTED.md)** - Multi-node clustering
+- **[Authentication & Authorization](docs/auth.md)** - Security and access control
 
 ### Developer Resources
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
