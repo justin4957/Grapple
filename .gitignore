@@ -22,6 +22,9 @@ grapple-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
+# Generated benchmark results (HTML reports with large JS libraries)
+/benchmarks/results/
+
 # Node.js dependencies and artifacts
 node_modules/
 npm-debug.log*
