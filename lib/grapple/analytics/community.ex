@@ -366,6 +366,18 @@ defmodule Grapple.Analytics.Community do
   end
 
   @doc """
+  Alias for `louvain_communities/0` for API consistency.
+
+  See `louvain_communities/0` for full documentation.
+
+  ## Example
+      iex> {:ok, communities} = Grapple.Analytics.Community.louvain()
+      iex> is_map(communities)
+      true
+  """
+  def louvain, do: louvain_communities()
+
+  @doc """
   Count triangles for each node in the graph.
 
   Returns a map of node IDs to the number of triangles they participate in.

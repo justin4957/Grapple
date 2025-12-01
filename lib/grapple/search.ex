@@ -9,7 +9,24 @@ defmodule Grapple.Search do
   - Multi-field search support
   - Relevance scoring
 
-  ## Examples
+  ## Quick Start
+
+      # 1. Create a node with searchable content
+      {:ok, node_id} = Grapple.create_node(%{
+        title: "Graph Databases",
+        description: "A comprehensive guide to graph databases and their applications"
+      })
+
+      # 2. Index the node for search (fetches properties automatically)
+      :ok = Grapple.Search.index_node(node_id)
+
+      # Or index specific fields only
+      :ok = Grapple.Search.index_node(node_id, [:title, :description])
+
+      # 3. Search indexed content
+      {:ok, results} = Grapple.Search.search("graph databases")
+
+  ## Search Examples
 
       # Basic text search
       {:ok, nodes} = Grapple.Search.search("machine learning")
@@ -23,8 +40,22 @@ defmodule Grapple.Search do
       # Phrase search for exact matches
       {:ok, nodes} = Grapple.Search.phrase_search("exact phrase")
 
-      # Search with AND operator
+      # Search with AND operator (all terms must match)
       {:ok, nodes} = Grapple.Search.search("machine learning", operator: :and)
+
+  ## Indexing Options
+
+      # Index with explicit properties (for custom property maps)
+      Grapple.Search.index_node_with_properties(node_id, %{
+        title: "Custom Title",
+        description: "Custom description"
+      }, [:title, :description])
+
+      # Re-index all nodes in the graph
+      {:ok, %{indexed: 150, errors: 0}} = Grapple.Search.reindex_all()
+
+      # Get search index statistics
+      stats = Grapple.Search.get_stats()
   """
 
   alias Grapple.Storage.EtsGraphStore
@@ -140,8 +171,85 @@ defmodule Grapple.Search do
   @doc """
   Indexes a node for full-text search.
 
-  This is typically called automatically when nodes are created or updated,
-  but can be called manually to re-index specific nodes.
+  This function has two forms:
+
+  ## Form 1: Convenience (auto-fetch properties)
+
+  When called with just a node_id, or with node_id and a list of fields,
+  the function automatically fetches the node's properties from the store.
+
+      # Index all string fields
+      Grapple.Search.index_node(node_id)
+
+      # Index only specific fields
+      Grapple.Search.index_node(node_id, [:title, :description])
+
+  ## Form 2: Explicit properties
+
+  When called with node_id, properties map, and optional fields,
+  uses the provided properties directly.
+
+      # Index with explicit properties
+      Grapple.Search.index_node(node_id, %{title: "Hello"})
+
+      # Index specific fields from explicit properties
+      Grapple.Search.index_node(node_id, %{title: "Hello", secret: "Hidden"}, [:title])
+
+  ## Parameters
+
+    * `node_id` - The ID of the node to index
+    * `properties_or_fields` - Either a map of properties, or a list of fields to index
+    * `fields` - Optional list of specific fields to index (only when second arg is a map)
+
+  ## Examples
+
+      # Create a node and index it (convenience form)
+      iex> {:ok, node_id} = Grapple.create_node(%{title: "Graph Databases", description: "A guide"})
+      iex> Grapple.Search.index_node(node_id)
+      :ok
+
+      # Index only specific fields (convenience form)
+      iex> {:ok, node_id} = Grapple.create_node(%{title: "Hello", description: "World"})
+      iex> Grapple.Search.index_node(node_id, [:title])
+      :ok
+
+      # Index with explicit properties
+      iex> Grapple.Search.index_node(1, %{title: "Hello", description: "World"})
+      :ok
+
+      # Index specific fields from explicit properties
+      iex> Grapple.Search.index_node(1, %{title: "Hello", count: 42}, [:title])
+      :ok
+  """
+  # Form 1a: Just node_id - fetch properties and index all fields
+  def index_node(node_id) do
+    case EtsGraphStore.get_node(node_id) do
+      {:ok, node} ->
+        InvertedIndex.index_node(node_id, node.properties, nil)
+
+      {:error, :not_found} ->
+        {:error, :node_not_found}
+    end
+  end
+
+  # Form 1b: node_id with list of fields - fetch properties and index specific fields
+  def index_node(node_id, fields) when is_list(fields) do
+    case EtsGraphStore.get_node(node_id) do
+      {:ok, node} ->
+        InvertedIndex.index_node(node_id, node.properties, fields)
+
+      {:error, :not_found} ->
+        {:error, :node_not_found}
+    end
+  end
+
+  # Form 2a: node_id with properties map - index all fields from provided properties
+  def index_node(node_id, properties) when is_map(properties) do
+    InvertedIndex.index_node(node_id, properties, nil)
+  end
+
+  @doc """
+  Indexes a node for full-text search with explicit properties and optional field filter.
 
   ## Parameters
 
@@ -151,13 +259,14 @@ defmodule Grapple.Search do
 
   ## Examples
 
-      iex> Grapple.Search.index_node(1, %{title: "Hello", description: "World"})
+      iex> Grapple.Search.index_node(1, %{title: "Hello", description: "World"}, nil)
       :ok
 
       iex> Grapple.Search.index_node(1, %{title: "Hello", count: 42}, [:title])
       :ok
   """
-  def index_node(node_id, properties, fields \\ nil) do
+  # Form 2b: node_id with properties map and fields list
+  def index_node(node_id, properties, fields) when is_map(properties) do
     InvertedIndex.index_node(node_id, properties, fields)
   end
 
