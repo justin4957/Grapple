@@ -13,10 +13,37 @@ defmodule Grapple.Performance.Monitor do
   - Histogram-based latency analysis
   - Configurable sampling rates
 
+  ## Setup
+
+  The Performance Monitor must be explicitly started before use. You can either
+  start it manually or add it to your application's supervision tree.
+
+  ### Manual Start
+
+      # Start the monitor
+      {:ok, _pid} = Grapple.Performance.Monitor.start_link()
+
+      # Optionally configure sampling rate
+      {:ok, _pid} = Grapple.Performance.Monitor.start_link(sample_rate: 0.5)
+
+  ### Supervision Tree (Recommended for Production)
+
+      # In your application.ex
+      def start(_type, _args) do
+        children = [
+          # ... other children
+          Grapple.Performance.Monitor,
+          # Or with options:
+          # {Grapple.Performance.Monitor, sample_rate: 0.5, max_samples: 5_000}
+        ]
+
+        Supervisor.start_link(children, strategy: :one_for_one)
+      end
+
   ## Usage
 
-      # Start monitoring
-      Grapple.Performance.Monitor.start_link()
+      # Check if monitor is running
+      Grapple.Performance.Monitor.running?()  # => true
 
       # Track an operation
       result = Grapple.Performance.Monitor.track(:create_node, fn ->
@@ -28,6 +55,20 @@ defmodule Grapple.Performance.Monitor do
 
       # Get operation statistics
       stats = Grapple.Performance.Monitor.get_operation_stats(:create_node)
+
+  ## Handling Unstarted Monitor
+
+  All functions return `{:error, :not_started}` if the monitor hasn't been started.
+  You can check this condition before calling:
+
+      case Grapple.Performance.Monitor.get_metrics() do
+        {:error, :not_started} ->
+          Logger.warning("Performance monitor not started")
+          %{}
+
+        metrics ->
+          metrics
+      end
   """
 
   use GenServer
@@ -56,6 +97,23 @@ defmodule Grapple.Performance.Monitor do
   end
 
   ## Client API
+
+  @doc """
+  Checks if the Performance Monitor is currently running.
+
+  ## Examples
+
+      iex> Grapple.Performance.Monitor.running?()
+      false
+
+      iex> Grapple.Performance.Monitor.start_link()
+      iex> Grapple.Performance.Monitor.running?()
+      true
+  """
+  @spec running?() :: boolean()
+  def running? do
+    Process.whereis(__MODULE__) != nil
+  end
 
   @doc """
   Starts the performance monitor.
@@ -118,26 +176,61 @@ defmodule Grapple.Performance.Monitor do
 
   @doc """
   Gets all current performance metrics.
+
+  Returns `{:error, :not_started}` if the Performance Monitor hasn't been started.
+  To start the monitor, add it to your supervision tree or call `start_link/0`.
+
+  ## Examples
+
+      # When monitor is running
+      iex> Grapple.Performance.Monitor.start_link()
+      iex> Grapple.Performance.Monitor.get_metrics()
+      %{operations: %{}, uptime_seconds: 0, sample_rate: 1.0}
+
+      # When monitor is not running
+      iex> Grapple.Performance.Monitor.get_metrics()
+      {:error, :not_started}
   """
-  @spec get_metrics() :: map()
+  @spec get_metrics() :: map() | {:error, :not_started}
   def get_metrics do
-    GenServer.call(__MODULE__, :get_metrics)
+    case Process.whereis(__MODULE__) do
+      nil -> {:error, :not_started}
+      _pid -> GenServer.call(__MODULE__, :get_metrics)
+    end
   end
 
   @doc """
   Gets statistics for a specific operation.
+
+  Returns `{:error, :not_started}` if the Performance Monitor hasn't been started.
+
+  ## Examples
+
+      iex> Grapple.Performance.Monitor.start_link()
+      iex> Grapple.Performance.Monitor.track(:create_node, fn -> :ok end)
+      iex> stats = Grapple.Performance.Monitor.get_operation_stats(:create_node)
+      iex> is_map(stats)
+      true
   """
-  @spec get_operation_stats(operation_name()) :: metric_data() | nil
+  @spec get_operation_stats(operation_name()) :: metric_data() | nil | {:error, :not_started}
   def get_operation_stats(operation_name) do
-    GenServer.call(__MODULE__, {:get_operation_stats, operation_name})
+    case Process.whereis(__MODULE__) do
+      nil -> {:error, :not_started}
+      _pid -> GenServer.call(__MODULE__, {:get_operation_stats, operation_name})
+    end
   end
 
   @doc """
   Resets all performance metrics.
+
+  Returns `{:error, :not_started}` if the Performance Monitor hasn't been started.
   """
-  @spec reset_metrics() :: :ok
+  @spec reset_metrics() :: :ok | {:error, :not_started}
   def reset_metrics do
-    GenServer.call(__MODULE__, :reset_metrics)
+    case Process.whereis(__MODULE__) do
+      nil -> {:error, :not_started}
+      _pid -> GenServer.call(__MODULE__, :reset_metrics)
+    end
   end
 
   @doc """
@@ -154,13 +247,18 @@ defmodule Grapple.Performance.Monitor do
   @doc """
   Sets the sample rate for monitoring.
 
+  Returns `{:error, :not_started}` if the Performance Monitor hasn't been started.
+
   ## Parameters
 
   - `rate` - Float between 0.0 and 1.0 (0% to 100% sampling)
   """
-  @spec set_sample_rate(float()) :: :ok
+  @spec set_sample_rate(float()) :: :ok | {:error, :not_started}
   def set_sample_rate(rate) when rate >= 0.0 and rate <= 1.0 do
-    GenServer.call(__MODULE__, {:set_sample_rate, rate})
+    case Process.whereis(__MODULE__) do
+      nil -> {:error, :not_started}
+      _pid -> GenServer.call(__MODULE__, {:set_sample_rate, rate})
+    end
   end
 
   ## Server Callbacks

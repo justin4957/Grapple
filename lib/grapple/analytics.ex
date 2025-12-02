@@ -116,6 +116,72 @@ defmodule Grapple.Analytics do
   @spec local_clustering_coefficient(integer()) :: {:ok, float()} | {:error, atom()}
   defdelegate local_clustering_coefficient(node_id), to: Community
 
+  @doc """
+  Detect communities using the Louvain algorithm for modularity optimization.
+
+  The Louvain algorithm finds communities by iteratively optimizing modularity,
+  a measure of network structure quality that compares actual connections within
+  communities to expected connections in a random network.
+
+  ## Returns
+  - `{:ok, %{node_id => community_id}}` - Map of nodes to their community assignments
+
+  ## Examples
+
+      iex> {:ok, communities} = Grapple.Analytics.louvain_communities()
+      iex> is_map(communities)
+      true
+
+      # Group nodes by community
+      iex> {:ok, communities} = Grapple.Analytics.louvain_communities()
+      iex> communities |> Enum.group_by(fn {_node, comm} -> comm end, fn {node, _comm} -> node end)
+  """
+  @spec louvain_communities() :: {:ok, map()} | {:error, atom()}
+  defdelegate louvain_communities(), to: Community
+
+  @doc """
+  Alias for `louvain_communities/0` for API consistency.
+
+  See `louvain_communities/0` for full documentation.
+  """
+  @spec louvain() :: {:ok, map()} | {:error, atom()}
+  defdelegate louvain(), to: Community
+
+  @doc """
+  Perform k-core decomposition to find densely connected subgraphs.
+
+  The k-core of a graph is the maximal subgraph where every node has at least
+  k connections within the subgraph.
+
+  ## Returns
+  - `{:ok, %{node_id => core_number}}` - Map of nodes to their core numbers
+
+  ## Examples
+
+      iex> {:ok, cores} = Grapple.Analytics.k_core_decomposition()
+      iex> is_map(cores)
+      true
+  """
+  @spec k_core_decomposition() :: {:ok, map()} | {:error, atom()}
+  defdelegate k_core_decomposition(), to: Community
+
+  @doc """
+  Count triangles for each node in the graph.
+
+  Returns a map of node IDs to the number of triangles they participate in.
+
+  ## Returns
+  - `{:ok, %{node_id => triangle_count}}` - Map of nodes to triangle counts
+
+  ## Examples
+
+      iex> {:ok, triangles} = Grapple.Analytics.triangle_count()
+      iex> is_map(triangles)
+      true
+  """
+  @spec triangle_count() :: {:ok, map()} | {:error, atom()}
+  defdelegate triangle_count(), to: Community
+
   # Graph Metrics
 
   @doc """
