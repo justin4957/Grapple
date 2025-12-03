@@ -35,8 +35,8 @@ defmodule Grapple.MixProject do
   defp deps do
     [
       {:jason, "~> 1.4"},
-      {:phoenix, "~> 1.7.0"},
-      {:phoenix_live_view, "~> 0.20.0"},
+      {:phoenix, "~> 1.8.0"},
+      {:phoenix_live_view, "~> 1.0"},
       {:phoenix_html, "~> 4.0"},
       {:phoenix_live_reload, "~> 1.4", only: :dev},
       {:plug_cowboy, "~> 2.6"},
@@ -48,7 +48,7 @@ defmodule Grapple.MixProject do
       {:phoenix_live_dashboard, "~> 0.8.0"},
       {:heroicons,
        github: "tailwindlabs/heroicons",
-       tag: "v2.1.1",
+       tag: "v2.2.0",
        sparse: "optimized",
        app: false,
        compile: false,
