@@ -42,7 +42,7 @@ defmodule Grapple.Auth do
       end
   """
 
-  alias Grapple.Auth.{User, Guardian, Permissions}
+  alias Grapple.Auth.{User, Guardian, Permissions, TokenRevocation, AuditLog}
 
   @doc """
   Registers a new user with a username, password, and optional roles.
@@ -138,17 +138,68 @@ defmodule Grapple.Auth do
   @doc """
   Logs out a user by revoking their token.
 
+  The token is added to a revocation list, preventing it from being used
+  for future authentication even if it hasn't expired yet.
+
   ## Parameters
 
   - `token` - JWT token to revoke
 
   ## Returns
 
-  - `:ok` - Token revoked successfully
-  - `{:error, reason}` - If revocation fails
+  - `{:ok, :revoked}` - Token revoked successfully
+  - `{:error, reason}` - If revocation fails (e.g., invalid token)
+
+  ## Examples
+
+      iex> {:ok, _user} = Grapple.Auth.register("logout_test", "pass", [:read_only])
+      iex> {:ok, token, _claims} = Grapple.Auth.login("logout_test", "pass")
+      iex> {:ok, :revoked} = Grapple.Auth.logout(token)
+      iex> # Token is now invalid
+      iex> {:error, :token_revoked} = Grapple.Auth.validate_token(token)
   """
   def logout(token) do
-    Guardian.revoke(token)
+    case TokenRevocation.revoke(token) do
+      {:ok, :revoked} = result ->
+        # Get user_id from token for audit logging
+        user_id = get_user_id_from_token(token)
+        AuditLog.log(:logout, user_id, %{})
+        AuditLog.log(:token_revoked, user_id, %{})
+        result
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Revokes all tokens for a user.
+
+  This is useful when a user changes their password or when
+  suspicious activity is detected on their account.
+
+  ## Parameters
+
+  - `user_id` - The user's ID
+
+  ## Returns
+
+  - `:ok` - All sessions conceptually revoked (actual implementation requires session tracking)
+
+  Note: Full implementation requires Session Management (#53).
+  Currently this is a placeholder that logs the intent.
+  """
+  def revoke_all_tokens(user_id) do
+    AuditLog.log(:all_tokens_revoked, user_id, %{reason: "manual_revocation"})
+    :ok
+  end
+
+  # Private helper to extract user_id from token
+  defp get_user_id_from_token(token) do
+    case Guardian.decode_and_verify(token) do
+      {:ok, %{"sub" => user_id}} -> user_id
+      _ -> nil
+    end
   end
 
   @doc """

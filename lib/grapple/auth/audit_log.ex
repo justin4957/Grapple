@@ -22,6 +22,7 @@ defmodule Grapple.Auth.AuditLog do
           | :role_revoked
           | :permission_denied
           | :token_revoked
+          | :all_tokens_revoked
 
   @type t :: %__MODULE__{
           id: String.t(),

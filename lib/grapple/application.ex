@@ -26,6 +26,8 @@ defmodule Grapple.Application do
       Grapple.Storage.EtsGraphStore,
       Grapple.Search.InvertedIndex,
       Grapple.Cluster.NodeManager,
+      # Authentication - Token Revocation
+      Grapple.Auth.TokenRevocation,
       # Phoenix PubSub
       {Phoenix.PubSub, name: Grapple.PubSub},
       # Telemetry
@@ -58,5 +60,6 @@ defmodule Grapple.Application do
     Grapple.Auth.User.init()
     Grapple.Auth.Permissions.init()
     Grapple.Auth.AuditLog.init()
+    # Note: TokenRevocation ETS table is created by its GenServer
   end
 end
